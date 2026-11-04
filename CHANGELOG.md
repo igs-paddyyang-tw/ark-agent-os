@@ -1,5 +1,19 @@
 # Changelog — ark-agent-os
 
+## 2.0.1 (2026-11-04)
+
+### 🔴 kiro-cli 3.0 相容：kiro backend 一律走 ACP
+
+- **現象**：kiro-cli 2026-11-04 11:51 自動升到 3.0.0，移除了 v1 引擎；走 chat transport（`--legacy-ui --agent-engine=v1`）的 worker 啟動全部逾時（ninja ai-dev 連 3 次）。ACP 不受影響
+- **修正**：偵測到 kiro-cli ≥ 3 時，kiro backend 一律走 ACP —— **不論 profile 寫 `transport: chat` 或 `ARK_KIRO_ACP_ENABLED=0`**（log 寫明原因）；版本只偵測一次，偵測失敗維持既有行為
+### 🧹 build 殘留的 `.egg-info` 不再被當成「已安裝」
+
+- **現象**：build wheel 會在 `src/` 留下 `<pkg>.egg-info`；editable 開發源（src 在 sys.path）裡 importlib.metadata 把它當成已安裝 →
+  混裝偵測誤判「ark-agent-os＋ark-team-agent」、版號讀成 2.0.0。開發源只要 build 過 os 就會**拒絕啟動**
+- **修正**：版號與混裝偵測只認真正安裝的 `.dist-info`
+
+- 部署不必改設定；team 1.13.23 已凍結不修 → 仍在 team 上、有 kiro chat agent 的部署請升 2.0.1，或改 `backend: kiro-acp`（ninja 已改，5034b15）
+
 ## 2.0.0 (2026-11-04)
 
 > **ark-agent-os 第一版 = ark-team-agent 最後一版（1.13.23）**，兩者由同一個 commit build。
