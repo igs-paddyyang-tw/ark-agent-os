@@ -1,5 +1,47 @@
 # Changelog — ark-agent-os
 
+## 2.1.0 (2026-11-05)
+
+> TG 系統訊息：**看得出是哪一隊**＋**文字可由設定檔改**（設計 paddy-bot `docs/designs/tg-message-templates-design.md`）。
+
+### 🆔 團隊識別
+
+- `team.yaml` 新增 `identity:`（name／emoji／title／env，全部選填）。沒寫就推導：隊名 deploy.yaml name → home 目錄名、emoji 取 manager 代號、環境取 `.env` 的 `ARK_ENV_TYPE`（aipc→AIPC、cloud-prod→雲端、pc→本機）
+- `/start`、`/status`、`/help`、啟動／重啟橫幅、告警（hang、成本、速率限制、崩潰、記憶體）開頭帶「🐟 fish-team｜AIPC」；對話中的回覆不加
+
+### 🗂️ 訊息目錄（約 260 則）
+
+- 所有送 TG 給人看的系統訊息搬進 `ark_agent_os/texts/zh-TW/*.yaml`，每則一個 ID；**預設文字逐字不變**（快照比對），刻意改版的只有下列畫面
+- 部署覆寫：home 的 `messages.yaml`，或 `team.yaml messages.overrides`。覆寫錯 ID／錯占位符 → 啟動時列出並附建議值；執行期渲染失敗退回套件預設，訊息照送
+- **once 機制**：`messages.file_policy: once`（預設）→ home 沒有 `messages.yaml` 時寫一份**全部註解**的範本（每則的預設文字＋可用占位符），之後永不覆寫；因為不寫入實際值，升版後新的預設文字照樣生效。不想要這個檔：`file_policy: skip`
+- CLI：`ark-agent-os messages list｜diff｜template`
+- 守門：送給人的呼叫裡出現寫死的中文／emoji 字面值 → 測試紅
+
+### 🖼️ 改版的畫面
+
+- `/status`：「存活 x/y」改「常駐 x/y · 待命 n 💤 · 異常 n」—— 延後啟動的成員不再算成故障；異常直接列前 3 項；⚪ 只留給真的停掉的成員並附圖例
+- `/start`：團隊識別＋title、「N 位 agent（常駐 n）」
+- 啟動橫幅：各層只列常駐中的成員、待命另列一行（原本列兩次）、預算／時間／版本收成兩行、版本寫 ark-agent-os（原寫舊名 ark-team-agent）
+- 代號推導：description 沒有「代號 — 職稱」分隔時改用 `display_name`，都沒有用 instance 短名（原本整段 description 當代號，nana-bot 橫幅出現長句）
+
+### 🐛 盤點順帶修正
+
+- crash 冷卻／記憶體過高不再顯示成「閒置 0 分鐘」（各自一則）
+- 閒置告警按鈕原標「⏸ 暫停 X 今日」，實際動作是請它向 leader 要工作 → 標籤改成實際動作
+- 成本暫停訊息的時區改讀 `cost_guard.timezone`（原寫死 Asia/Taipei）
+- 轉呈逾時訊息的「管家」改成實際 manager 名稱
+- 組 topic 送出失敗不再把例外原文送進群組（只進 log）
+- 每日報告時間可設：`notifications.daily_summary_time`（預設 21:00）
+- 原本 HTML 訊息裡沒 escape 的值（代號、錯誤訊息、L3 問題）現在會 escape —— 值含 `<` 時不再讓 TG 回 400
+- `/api/health` 版號：editable 開發源原本回報 team 的 1.13.23，改回報實際的 os 版號
+- `deploy doctor／init` 認得 `-m ark_agent_os` 的 unit（nana-bot 升級驗證誤報「exec 描述 module／實際 script」）
+- 背景任務終態回報（獨立子程序）也套用部署的覆寫與識別
+
+### 🔄 相容性
+
+- 沒寫 `identity`／`messages` 的部署照常啟動；首次啟動在 home 多一個全註解的 `messages.yaml`（無作用）
+- 回滾到 2.0.x：新的兩個頂層鍵會被忽略（2.0.3 實測），可直接降版
+
 ## 2.0.4 (2026-11-04)
 
 > nana-bot 11-04 以 `migrate --from-bot` 遷到 2.0.2、與 nana 子 team 預覽 `deploy init` 時踩到的套件 bug。
