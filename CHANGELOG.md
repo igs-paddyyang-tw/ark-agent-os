@@ -1,5 +1,10 @@
 # Changelog — ark-agent-os
 
+## 2.1.3 (2026-11-05)
+
+- **角色分 4 層**（Paddy 定）：`/status`、啟動橫幅、`/help` 統一為 👑 指揮（manager）→ 🛠 維運（admin）→ 📋 專案（leader）→ ⚙️ 執行（worker）；沒成員的層不顯示。原本 admin 與 manager 併在「指揮」、`/help` 只分兩層。層名與圖示走訊息目錄（`cmd.status.label_*`／`icon_*`），可用 `messages.yaml` 改
+- `.ark` 佈局：`.claude/skills` 是自備的技能目錄時不標 `adapter_degraded`（paddy 試點前發現）
+
 ## 2.1.2 (2026-11-05)
 
 > **`.ark` 工具中立佈局 M1～M3**（計畫 paddy-bot `docs/plans/ark-workspace-layout-os-plan.md`，R-1～R-12 定案）：`.ark` 是真相、`.kiro`／`.claude` 是投影、`AGENTS.md` 是大門。**既有 `.kiro` 佈局行為不變**（backend 產出逐字快照比對）。本版先支援 Claude；kiro 轉接器在之後的 2.1.x。
