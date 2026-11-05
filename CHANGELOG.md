@@ -1,5 +1,15 @@
 # Changelog — ark-agent-os
 
+## 2.1.1 (2026-11-05)
+
+> Kiro 月額度用完（11-05 實際發生）時，整隊一行指令切到 claude、恢復後切回。規格 paddy-bot `docs/specs/backend-failover-switch-spec.md`（依 ninja 當天原型）。
+
+- **`team.yaml backend_sets:`**（選填）：「主要／備援」各組的 backend＋model，`overrides` 逐 instance、`exclude` 排除；`active_backend_set` 記目前在哪組、`backend_set_pins` 個別 instance 釘在某組。**沒設＝行為完全不變**
+- **`ark-agent-os backend status [--json]`**：每個 instance 在哪組、backend／model、執行狀態，被組覆寫的標出原值
+- **`ark-agent-os backend switch --to <組> [--only a,b] [--dry-run]`**：只改 `active_backend_set`／`backend_set_pins` 兩行（其餘一字不動，回切後逐位元組相同）→ reload → **只重啟執行中且有變的** instance、逐一等就緒；起不來的自動釘回原組。claude-code 的 model 不可為 auto、找不到 claude-agent-acp → 切換前就擋
+- **額度告警內建**：daemon 偵測到額度類重複失敗（含啟動時）→ 私訊管理者，附可直接貼上的切換指令（`failover.notify_cooldown_hours` 內不重發）；`failover.mode: auto` 才自動切，並每天 00:10 嘗試切回
+- `/api/health.backend_set`；在備援組時 degraded 標示（附回切指令）
+
 ## 2.1.0 (2026-11-05)
 
 > TG 系統訊息：**看得出是哪一隊**＋**文字可由設定檔改**（設計 paddy-bot `docs/designs/tg-message-templates-design.md`）。
