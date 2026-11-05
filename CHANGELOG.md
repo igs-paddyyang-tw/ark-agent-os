@@ -1,5 +1,17 @@
 # Changelog — ark-agent-os
 
+## 2.1.5 (2026-11-06)
+
+> Pixel Office 移植計畫 P2（設計 paddy-bot `docs/designs/web-channel-artifacts-design.md`、問題單 `docs/issues/2026-11-05-web-reply-one-shot-followups-to-telegram.md`、`docs/issues/2026-11-05-reply-file-ignores-web-source.md`）。
+
+- **web 一級通道**：網頁發問後，agent 同回合第二則以後的 `reply()`、派工鏈的延遲回報都回同一個網頁對話（原本第一則之後跑去 TG）。解綁條件：之後收到 TG／排程訊息、閒置超過 `communication.web_channel_ttl_s`（預設 1800；`0`＝2.1.4 一次性行為）、網頁關閉對話。turn 結束補發只在本回合沒 `reply()` 時發生
+- `GET /api/web-reply/<conv>` 多回 `open`；`/api/health` 多 `web_sources`（instance → conv／age／回覆數）；日誌 `🌐 WEB REPLY #n`
+- **網站續收**：`chat_relay` 第一批之後背景續收到 `open: false`；發問前不再 `DELETE` 佇列（會清掉未讀續報），改成先寫進對話。舊 daemon 沒有 `open` → 行為同 2.1.4
+- **網頁傳檔（artifact）**：網頁對話中 `reply_file` 不送 TG，登記到 `state/artifacts.db`（白名單沿用 reply_file、resolve 後封閉檢查、sha256）並投 `kind: file` 訊息。新 API：`GET /api/artifacts/<id>`、`/download`、`/raw`、`POST /api/artifacts/<id>/link`（10 分鐘 HMAC 簽章）、`GET /r/<id>`（`Content-Security-Policy: sandbox allow-scripts allow-popups`，無 allow-same-origin）；過期 403、原檔刪除或被換 410。網站轉發 `/api/v1/chat/artifacts/*`、`/chat/r/<id>`（只限自己的對話），chat 顯示檔案卡（開啟／下載）
+- **長答覆報告回網頁**：web 來源的長答覆達 `report.min_chars` → MD＋HTML 登記成 artifact，投 `kind: report` 報告卡（不需要 TG）
+
+- **網頁對話顯示 TG HTML**：agent 回覆直接寫的 `<b>…</b>`（如維運日報）在網站 chat 泡泡顯示成字面標籤 → 改用 `fmtMsg()`：先全體跳脫，只還原同一行、成對、無屬性的 b／i／u／s／code（與 2.1.2 TG 端同規則）；對話串預覽去標籤
+
 ## 2.1.4 (2026-11-05)
 
 > Pixel Office 移植計畫 P1（設計 paddy-bot `docs/designs/acp-tool-events-design.md`、問題單 `docs/issues/2026-11-05-acp-structured-tool-events-for-activity.md`）。
