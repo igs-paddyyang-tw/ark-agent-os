@@ -1,5 +1,29 @@
 # Changelog — ark-agent-os
 
+## 2.1.2 (2026-11-05)
+
+> **`.ark` 工具中立佈局 M1～M3**（計畫 paddy-bot `docs/plans/ark-workspace-layout-os-plan.md`，R-1～R-12 定案）：`.ark` 是真相、`.kiro`／`.claude` 是投影、`AGENTS.md` 是大門。**既有 `.kiro` 佈局行為不變**（backend 產出逐字快照比對）。本版先支援 Claude；kiro 轉接器在之後的 2.1.x。
+
+### M1 路徑解析（行為不變）
+- `ArkWorkspace`：判定 `ark`（有 `.ark/ark.yaml`）／`legacy_kiro`，各層路徑唯一入口；套件 77 處寫死的 `.kiro` 全部改經它，守門：再寫死就紅
+- `team.yaml ark_files`（`kiro_files` 為別名）；`/api/health.workspace_layout`
+- team MCP 啟動模組改 `ark_agent_os.team_mcp`（判定新舊都認）；`team_mcp_spec()` 純函式
+
+### M2 Claude 轉接器
+- `ark-agent-os ark sync [--check]`：根 CLAUDE.md 只動 `<!-- ark:begin/end -->` 受管區塊（手寫內容一字不動）、`.mcp.json`、`.claude/commands`、`.claude/skills` 連結；`.ark/adapters.lock` 記雜湊，`--check` 抓手改／缺檔
+- agent 執行：`.ark` 佈局的 claude agent 從 `.ark/brain`＋`.ark/runtime/TEAM.md` 匯入、MCP＝`.ark/mcp.json`＋team MCP 即時注入（不讀 `.kiro`）
+- IDE 身分 `<instance>@ide`：權限比照本人、不動本人的回覆狀態；reply 直送本人私訊
+- 工具白名單：`.ark/agents/<name>.yaml` 的 `tools` → claude `session/new._meta.claudeCode.options.tools`；未宣告照舊（health `permission_unscoped`）
+- daemon 啟動時自動投影；人寫同名檔不覆寫、標 `adapter_user_owned`
+
+### M3 遷移
+- `ark-agent-os ark migrate [--apply]`：`.kiro/steering`→`.ark/brain`（inclusion 抽進 `ark.yaml`）、TEAM.md 交 daemon 寫 `.ark/runtime/`、prompts、宣告的 MCP、技能複本；手寫 CLAUDE.md 只移除 `@.kiro/steering` 匯入行；**不碰 team.yaml**；先備份、失敗全部還原；有 kiro instance 的部署拒絕
+- `backend switch`：`.ark` 佈局下不准切到含 kiro instance 的組
+
+### 其他
+- doctor：手寫但已匯入 SOUL／TEAM 的 CLAUDE.md 不算衝突（ninja 升 2.1.0 驗證誤報）
+- agent 回覆裡直接寫的 TG HTML（`<b>…</b>` 等成對、同一行、無屬性的 b／i／u／s／code）正常顯示 —— 原本被跳脫成字面標籤（paddy 改 claude 後 11-05 TG 實測）
+
 ## 2.1.1 (2026-11-05)
 
 > Kiro 月額度用完（11-05 實際發生）時，整隊一行指令切到 claude、恢復後切回。規格 paddy-bot `docs/specs/backend-failover-switch-spec.md`（依 ninja 當天原型）。
