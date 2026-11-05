@@ -1,5 +1,15 @@
 # Changelog — ark-agent-os
 
+## 2.1.4 (2026-11-05)
+
+> Pixel Office 移植計畫 P1（設計 paddy-bot `docs/designs/acp-tool-events-design.md`、問題單 `docs/issues/2026-11-05-acp-structured-tool-events-for-activity.md`）。
+
+- **ACP 結構化工具事件**：`process_acp` 把 `tool_call`／`tool_call_update`／kiro `tool_call_chunk`（`session/update` 與 `_kiro.dev/session/update` 兩條通道）送成 `ToolEvent`（call_id、kind、title、status、遮罩過的 detail）；渲染行與 `_output_count`、補送、白名單行為不變
+- 渲染行不再出現 `[acp] tool ?`：沒標題的 update 用同 call_id 第一次的標題
+- **ActivityHub**（daemon）：每個 agent「正在做什麼」（讀檔／寫檔／跑指令／委派／思考），狀態判斷沿用 nana 先行版的純函式
+- 新 API：`GET /api/v1/activity`（快照，`ark.agent_activity.v1`）、`GET /api/v1/activity/stream`（SSE，先快照後增量、15 秒 keepalive、`Last-Event-ID`）；`?public=1` 套 `redact_public`
+- 網站／Pixel Office 不再需要每 2 秒輪詢 output（前端改用此 API 在 P3）
+
 ## 2.1.3 (2026-11-05)
 
 - **角色分 4 層**（Paddy 定）：`/status`、啟動橫幅、`/help` 統一為 👑 指揮（manager）→ 🛠 維運（admin）→ 📋 專案（leader）→ ⚙️ 執行（worker）；沒成員的層不顯示。原本 admin 與 manager 併在「指揮」、`/help` 只分兩層。層名與圖示走訊息目錄（`cmd.status.label_*`／`icon_*`），可用 `messages.yaml` 改
