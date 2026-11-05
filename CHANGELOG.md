@@ -1,5 +1,16 @@
 # Changelog — ark-agent-os
 
+## 2.0.4 (2026-11-04)
+
+> nana-bot 11-04 以 `migrate --from-bot` 遷到 2.0.2、與 nana 子 team 預覽 `deploy init` 時踩到的套件 bug。
+
+- **🔴 migrate 產出 `backend: auto` 整隊跑不起來**：bot `backend.cli: auto` 原樣寫出，引擎不認 → 全部 CONFIG_INVALID；migrate 自己的驗證卻判通過。改成 `auto`／`kiro` → `kiro-cli`，驗證改走與 daemon 相同的 backend 解析
+- **內建網站 `/wiki` 500**：wiki 頁 `tags` 有 YAML 整數（`2025`）時與字串混排拋 TypeError。建索引時 tag 一律轉字串（wiki 禁手改，只能套件端處理）
+- **leader 延後啟動時每次重啟都發「📋 新的一天」**：原本查 leader 的 START 事件判斷重啟，但延後啟動的 leader 在判斷之後才寫入；查詢也沒篩日期（常駐 leader 隔天起永遠判成重啟）。改看 daemon 自己的「今天啟動次數」
+- **遷移後幾乎每則回覆都附 HTML**：bot 的 `report.min_chars: 150` 照搬，但 2.0 是「同一輪累計字數 ≥ 門檻」→ 700 字的回覆也附檔、內容與文字重複。migrate 遇低於 3500 的門檻改為 3500 並註記
+- **補送回覆的報告附件晚 2 分鐘才到**：FR-038 補送在 turn 結束後才發，新開的報告緩衝等 120 秒閒置。一輪已結束時改走 5 秒收尾寬限
+- **deploy 對子 team（共用上層 venv）判斷全錯**：`deploy init` 依服務 ExecStart 推 venv（`../../.venv`）、找得到停用中的服務、找不到服務時不標啟用、套件名依版號；`upgrade` 遇共用 venv 擋下、`setup` 不另建 venv 也不裝套件
+
 ## 2.0.3 (2026-11-04)
 
 - **manager 派工的「已交給」多列了被擋下的成員**：nana 實測回「已交給 羅賓、娜美」—— manager 先試著直接派 worker（羅賓）被權限擋下（403），再改派 leader（娜美）。改成**送達才記**，只列真正交辦的對象
