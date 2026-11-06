@@ -1,5 +1,21 @@
 # Changelog — ark-agent-os
 
+## 2.1.7 (2026-11-06)
+
+> Pixel Office 移植計畫 P3～P5（計畫 paddy-bot `docs/plans/2026-11-05-pixel-office-port-plan.md`；前端來自 nana `apps/team-website`）。**預設關閉**：`PIXEL_OFFICE=1` 才出現。
+
+- **像素辦公室**（`PIXEL_OFFICE=1`）：後台首頁 `/app` 改成辦公室，每個 agent 依 role 入座（指揮中心／戰情室／研發艙／待命艙），即時顯示讀檔、寫檔、跑指令、委派、等待；點角色或名牌開右側對話抽屜（沿用 `/api/v1/chat/*`）。總覽移到 `/app/dashboard`，側邊欄多「辦公室」。旗標關閉時 `/app`、選單、路由與 2.1.6 相同
+- 網站 `GET /api/v1/activity`、`/api/v1/activity/stream` 轉發 daemon 的 ActivityHub（2.1.4）；登入規則同其他監控 API；未登入（`CONSOLE_PUBLIC_READ=1`）帶 `public=1` 由 daemon 遮蔽工具細節；daemon 不在時回 `ok: false`／SSE `offline`，前端顯示離線並自動重連
+- **team.yaml `avatar`**（instance 選填）：`palette`（0–5，衣服顏色）、`area`（佈局區域 id，優先於 role 分區）、`sprite`（目前只有 `builtin:chibi`）。不合法的值不擋啟動，丟掉該欄位並寫 warning 說可用值；activity 快照多 `avatar`
+- **佈局覆寫**：部署端 `web/pixel/layouts/office.json`（`ark.pixel_layout.v1`）優先於內建佈局，經 `GET /pixel/layout.json` 提供；格式不合法改用內建並寫 warning
+- **後台 Agents＋對話合一頁**（`PIXEL_OFFICE=1`，移植 nana 9a46351）：`/app/agents` 左欄成員名冊、右側對話；`/chat`、`/chat/<agent>`、`/app/chat*` 轉到 `/app/agents?a=&c=`；主選單拿掉「對話」。對話主體抽成 `_chat_app.html`（`/chat` 與後台共用，保留 2.1.5 的 artifact 卡與 `fmtMsg`）。旗標關閉時 `/chat` 獨立頁、`/app/agents` 表格照舊
+- **辦公室抽屜檔案卡**改讀 2.1.5 的 artifact 訊息（`kind: file／report`；開啟走簽章連結、下載走 ID）。原本沿用 nana 的路徑解析 `/api/v1/chat/artifacts/resolve`（套件沒有）→ 卡片不出現、artifact 訊息顯示成原始 JSON
+- favicon；端到端測試 `tests/website/e2e/`（需 playwright＋`OFFICE_URL`，否則 skip）
+- **修 TG 標題行的 `<b>` 被跳脫**（2.1.2～2.1.6）：回覆第一行 ≤ 30 字會當標題加粗，這行直接跳脫、沒走 2.1.2 的還原 → 「⏰ <b>狀態更新</b>」寫在第一行照樣顯示字面標籤（11-06 paddy 維運管家）。2.1.2 的測試只驗 `_md_to_html`，沒驗實際送出的 `_format_reply_html`
+- **rate_limit 誤判**（問題單 `docs/issues/2026-11-06-rate-limit-false-positive-on-agent-narration.md` A-2～A-4）：只認錯誤句型（`rate_limit_error`、`API Error: 429`、`429 … Too Many Requests`、`ThrottlingException`、行首 `Error:` 的 rate limit…），agent 敘述裡的 throttled／rate limiting 不再觸發冷卻與告警；告警建議依後端（claude-code：共用帳號額度、換 model 無效；其他：換輕量 model）
+- **`deploy doctor` FR-036 不再誤報專案根 manager 的 `.mcp.json`**（同一問題單 A-5～A-7）：team server 的 `--instance`／`--role` 與該 instance 一致 → 不算衝突（新舊模組名都認）；身分不一致、沒有 team server 或讀不了照報。專案根（有 team.yaml）的訊息改成「讓身分一致或移除」，不再建議搬到 `agents/{name}/`。nana 實機設定驗證：0 筆
+- 尚未包含：rate_limit 改用 ACP 結構化錯誤（問題單 A-1）、自訂 PNG 角色（FR-F4）、在辦公室核可授權（FR-E；daemon 的 ACP 目前收到 permission 一律直接回應，沒有待決佇列）、手機版版面
+
 ## 2.1.6 (2026-11-06)
 
 > 原本標 2.1.5，但另一個 session 已先以 2.1.5 發布 Pixel Office P2（版號撞到）→ 改發 2.1.6，內容不變
