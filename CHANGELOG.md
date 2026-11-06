@@ -1,5 +1,10 @@
 # Changelog — ark-agent-os
 
+## 2.1.10 (2026-11-06)
+
+- **辦公室：hang／error 也會亮 error**（nana 回饋，`docs/issues/2026-11-06-pixel-office-p1-review-vs-2.1.8.md` R-4 補遺）：2.1.9 只有 status 變 crashed 才亮，hang 偵測、預算超限、設定錯誤、重複失敗等只寫 event_log 的錯誤，辦公室看不到。新增 `event_log.add_listener`（`record()` 寫入後、在事件迴圈上呼叫；listener 例外吞掉），daemon 登記 `ActivityHub.on_event`：hang／error／crash → `last_error`（error 顯示 30 秒）。未知 instance（排程、系統）不建假 agent
+- 測試：`tests/ark_agent_os/test_activity_error_events.py` 6 項；反證：拿掉 listener 通知／daemon 登記／instance 檢查各自紅
+
 ## 2.1.9 (2026-11-06)
 
 - **Pixel Office P1 審查修正**（nana 回饋 `docs/issues/2026-11-06-pixel-office-p1-review-vs-2.1.8.md`；設計 `docs/designs/acp-tool-events-design.md` §7）：
