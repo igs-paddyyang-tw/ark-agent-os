@@ -1,5 +1,10 @@
 # Changelog — ark-agent-os
 
+## 2.1.8 (2026-11-06)
+
+- **session tailer 輪詢成本**（問題單 `docs/issues/2026-11-06-session-tailer-full-scan-cpu.md` T-3／T-4）：3000 個未變動的舊檔，每輪 CPU 88ms → 30ms（profile：主因是每檔建 `Path` 再 `str()` 當快取鍵，不是 stat）—— 改用 `os.scandir` 回傳字串路徑＋一次 stat、不排序，只有變動的檔才建 `Path`；輪詢間隔改由 `ARK_KIRO_TAIL_POLL_S` 設定，預設 1 → **3 秒**（下限 0.2）。合計閒置 CPU 約降為原本 1/9。尚未做 T-1／T-2（目錄 mtime＋只追活躍檔，閒置趨近 0）與 T-5
+- **啟動 log 不再誤報人格被換成範本**（kiro-bot 回報）：`Using SOUL.md template …`、`Generated agent JSON dynamically …` 原本在判斷 policy 前就印 info —— `once` 且檔案已存在時根本不寫，卻像 manager 人格被覆寫。改成：挑範本印 debug；真的寫檔才印 info 並帶來源（`Wrote SOUL.md: …（來源 …）`）；已存在印 debug「已存在（policy=once），保留」
+
 ## 2.1.7 (2026-11-06)
 
 > Pixel Office 移植計畫 P3～P5（計畫 paddy-bot `docs/plans/2026-11-05-pixel-office-port-plan.md`；前端來自 nana `apps/team-website`）。**預設關閉**：`PIXEL_OFFICE=1` 才出現。
