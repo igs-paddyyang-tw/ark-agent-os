@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.1.6 (2026-11-06)
+
+> 原本標 2.1.5，但另一個 session 已先以 2.1.5 發布 Pixel Office P2（版號撞到）→ 改發 2.1.6，內容不變
+
+- **使用者訊息的來源標頭**：daemon 轉給 agent 的使用者訊息，第一行一律是 `[來源：TG 私訊 · 名稱]`／`[來源：TG 群組 · #topic · 名稱]`／`[來源：web · 名稱]`（網站舊前綴 `[web · 名稱]` 由 daemon 正規化，nana 自有網站同樣適用）。原本 TG 只送原文，agent 分不出 TG 與 IDE（nana 小娜依來源判斷的規則永遠判成 IDE、只能靠補送）
+- **修 `backend switch`／`status` 實機不能用**（2.1.1～2.1.4）：`/api/instances` 實際回 `{name: {...}}`，原本當 list 解析 → switch 寫檔前就 TypeError、status 全是 `?`；測試的假 API 改用實機形狀。讀不到狀態時改成顯示警告（原本默默吞掉）
+- **TEAM.md 統一回覆規則**：「開頭有 `[來源：…]` → 一律呼叫 reply()；沒有 → IDE 直接對話，不要呼叫 reply()」—— 各部署不必再在 CLAUDE.md 自己寫
+
 ## 2.1.5 (2026-11-06)
 
 > Pixel Office 移植計畫 P2（設計 paddy-bot `docs/designs/web-channel-artifacts-design.md`、問題單 `docs/issues/2026-11-05-web-reply-one-shot-followups-to-telegram.md`、`docs/issues/2026-11-05-reply-file-ignores-web-source.md`）。
