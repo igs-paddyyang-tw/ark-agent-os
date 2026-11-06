@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.1.11 (2026-11-06)
+
+> 原本標 2.1.10，但另一個 session 已先以 2.1.10 發布（辦公室 hang／error 亮燈）→ 改發 2.1.11，內容不變
+
+
+- **修 TG 回覆後備出口的 `<b>` 被跳脫**（2.1.2～2.1.9）：agent 沒有 topic／私訊出口時（例如 paddy 的 admin），reply 改送 admin 私訊並加代號前綴（`dispatch.reply_no_exit`）—— 這條把整段內文 `_html_escape`，「⏰ <b>狀態更新</b>」照樣顯示字面標籤（11-06 17:00 paddy 赤木）。改走 `_md_to_html`（escape-first＋只還原成對 b／i／u／s／code）。2.1.2 修內文、2.1.7 修標題行，這條兩次都漏
+- 守門 `test_no_tg_exit_escapes_agent_text_wholesale`：掃整個 `api.py`，agent 文字（text／req.text／body）傳進 TG 範本不得用 `_html_escape`；並檢查 `_md_to_html` 出口數量，掃到 0 就紅（防「範圍掃錯」）
+
 ## 2.1.10 (2026-11-06)
 
 - **辦公室：hang／error 也會亮 error**（nana 回饋，`docs/issues/2026-11-06-pixel-office-p1-review-vs-2.1.8.md` R-4 補遺）：2.1.9 只有 status 變 crashed 才亮，hang 偵測、預算超限、設定錯誤、重複失敗等只寫 event_log 的錯誤，辦公室看不到。新增 `event_log.add_listener`（`record()` 寫入後、在事件迴圈上呼叫；listener 例外吞掉），daemon 登記 `ActivityHub.on_event`：hang／error／crash → `last_error`（error 顯示 30 秒）。未知 instance（排程、系統）不建假 agent
