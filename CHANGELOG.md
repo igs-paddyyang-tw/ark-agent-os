@@ -1,5 +1,14 @@
 # Changelog — ark-agent-os
 
+## 2.1.9 (2026-11-06)
+
+- **Pixel Office P1 審查修正**（nana 回饋 `docs/issues/2026-11-06-pixel-office-p1-review-vs-2.1.8.md`；設計 `docs/designs/acp-tool-events-design.md` §7）：
+  - **R-3 狀態不回落**：TTL 回落原本只在 SSE 佇列閒置 15 秒時 tick → 只要有一個 agent 持續出事件，其他 agent 的 writing／thinking／error 永遠不回到 idle。改成 ActivityHub 自帶 ticker（每 2 秒；第一個訂閱者啟動、沒人訂閱自動結束）
+  - **R-4 回覆中／思考／context／權限從沒出現過**：`process_acp` 把 `agent_message_chunk`→writing、`agent_thought_chunk`→thinking（同一 agent 每秒最多推一次）、`usage_update` 的 used/size→`context_pct`、`session/request_permission`→`permission`（送出拒絕後清空）接到 Hub
+  - **R-10 慢訂閱者默默漏轉換**：佇列溢出改送 `event: resync`；契約：前端收到就重抓 `GET /api/v1/activity`（`static/pixel/stream.js` 已實作）
+- **tailer 閒置成本歸零**（問題單 T-1／T-2／T-5）：目錄 mtime 沒變就只 stat 活躍集合（最近 `ARK_KIRO_TAIL_MAX_AGE_DAYS`＝7 天有變動），每 60 秒定期全掃接住舊 session 續寫；3000 個舊檔閒置每輪 24ms → 0.0ms。全隊 claude-code 時 daemon 不啟動 tailer（log 說明原因）
+- **rate_limit 改看結構化錯誤**（問題單 A-1）：ACP instance 的錯誤偵測只掃 JSON-RPC 錯誤回應與 stdout 非 JSON 行（stderr），不再掃 agent 自己的文字 —— 連「Error: rate limit reached」這種像錯誤的敘述也不會誤判；真正的 `API Error: 429 … rate_limit_error` 照樣判出。kiro PTY 沒有結構化來源，維持 2.1.7 收緊後的比對
+
 ## 2.1.8 (2026-11-06)
 
 - **session tailer 輪詢成本**（問題單 `docs/issues/2026-11-06-session-tailer-full-scan-cpu.md` T-3／T-4）：3000 個未變動的舊檔，每輪 CPU 88ms → 30ms（profile：主因是每檔建 `Path` 再 `str()` 當快取鍵，不是 stat）—— 改用 `os.scandir` 回傳字串路徑＋一次 stat、不排序，只有變動的檔才建 `Path`；輪詢間隔改由 `ARK_KIRO_TAIL_POLL_S` 設定，預設 1 → **3 秒**（下限 0.2）。合計閒置 CPU 約降為原本 1/9。尚未做 T-1／T-2（目錄 mtime＋只追活躍檔，閒置趨近 0）與 T-5
