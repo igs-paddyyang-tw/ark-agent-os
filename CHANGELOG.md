@@ -1,5 +1,15 @@
 # Changelog — ark-agent-os
 
+## 2.1.15 (2026-11-09)
+
+> 原本要以 2.1.14 發（hotfix），但網站帳號已先以 2.1.14 發布（我方未先在遠端佔號而撞號）→ 改發 2.1.15，以 main 為基底（含 2.1.14 帳號功能，預設關閉）
+
+- **TG `/status` 每位成員附設定**（Paddy 11-09：「不要只有現在的狀態，要附上設定狀態像模型資訊」）：改成每層一個標題、成員逐行 —— `狀態圖示 代號　後端·模型（·推理強度）　啟動方式`，例 `🟢 👨‍💻 Paddy　claude·opus　常駐`、`💤 赤木　claude·sonnet　待機·閒置 30 分關`。原本每層成員擠一行只有狀態圖示，待命成員只剩名字清單
+  - 模型與後端用 `get_status` 的實際值（backend_sets 套用後）；沒在跑的成員退回設定值；後端名依前綴縮寫（`claude-code`／`claude-acp` → claude、`kiro-cli`／`kiro-acp` → kiro）
+  - 啟動方式：常駐／待機（`auto_start: false`）／待機·閒置 N 分關／開機起·閒置 N 分關／開機起（`persistent: false`＋不回收）
+  - 不在 primary 後端組時：頂部加「🔀 後端組 X（回切指令）」，被覆寫的成員標 `↪X`；在 primary 組不標（primary 就是正式設定）
+- 啟動橫幅不變（仍為精簡版）；訊息目錄新增 `cmd.status.layer／agent／mode_*／model_default／mark_set／backend_set`，移除 `cmd.status.group／group_cont／standby`（無部署覆寫）
+
 ## 2.1.14 (2026-11-09)
 
 > **網站帳號**：信箱＋密碼註冊登入、Google 登入、三級角色（viewer／operator／owner）、owner 存取權限審批頁。
