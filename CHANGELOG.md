@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.1.13 (2026-11-09)
+
+> 由 v2.1.12 tag 開 hotfix 分支發佈：main 上另一個 session 的網站帳號功能（Phase 0+1，計畫 2.2.0）**不在本版**。依據：`docs/reports/review/2026-11-09-ark-agent-os-architecture-review.md` F-3、F-7
+
+- **instance 沒註冊時講清楚原因**（F-3）：`auto_start: false`＋`persistent: true` 原本派工只報 `not defined in team.yaml`（明明有定義）→ 改報「這是本體工作區語意、要首次派工才啟動請改 `persistent: false`」，**開機時就警告**，不等派工失敗（2026-11-06 paddy 宮城 40 秒派不到）
+- **agent 自我重啟防護**（F-3）：systemd 底下，daemon 在 agent 子程序 PATH 前置 `systemctl` 包裝（`state/agent-bin/systemctl`）—— `restart` 自己的服務改送 SIGTERM 給 daemon（systemd `Restart=always` 拉起）；`stop`／`kill` 自己的服務拒絕；其他指令原樣交給真的 systemctl。原本 agent 自我重啟會在停機時殺掉自己的 systemctl，服務停在 inactive（2026-11-06 wukong 31 分鐘）
+- **`POST /api/preflight/run`**（F-7）：重跑 preflight 並更新 `degraded`，不必重啟；secret_audit 的提示改成「ack 查證過的命中後呼叫此 API」（原本 ack 完 health 仍紅，只能重啟，2026-11-09 kiro-bot）
+
 ## 2.1.12 (2026-11-09)
 
 - **reply_file 的 TG 上傳錯誤不再變成 500**（11-09 paddy ai-dev 新聞日報：`httpx.ReadTimeout` 直接拋成 ASGI exception，agent 只看到呼叫失敗、可能重送）：
