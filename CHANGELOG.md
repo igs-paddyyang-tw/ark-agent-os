@@ -1,5 +1,12 @@
 # Changelog — ark-agent-os
 
+## 2.1.12 (2026-11-09)
+
+- **reply_file 的 TG 上傳錯誤不再變成 500**（11-09 paddy ai-dev 新聞日報：`httpx.ReadTimeout` 直接拋成 ASGI exception，agent 只看到呼叫失敗、可能重送）：
+  - 送檔（document／photo）改帶 `FILE_SEND_TIMEOUTS`（read／write 60 秒；PTB 預設 read 只有 5 秒，上傳 HTML 報告常在 TG 處理中就逾時）
+  - API 統一攔截：逾時回 `{"ok": false, "maybe_delivered": true}` 並明說「可能已送達、別立刻重送」；其他 TG 網路錯誤回 `ok: false`＋原因；白名單外副檔名回訊息（不再 500）
+  - 守門：掃全套件，每個 `bot.send_document／send_photo` 都要帶 `FILE_SEND_TIMEOUTS`（掃到少於 4 處就紅，防範圍掃錯）
+
 ## 2.1.11 (2026-11-06)
 
 > 原本標 2.1.10，但另一個 session 已先以 2.1.10 發布（辦公室 hang／error 亮燈）→ 改發 2.1.11，內容不變
