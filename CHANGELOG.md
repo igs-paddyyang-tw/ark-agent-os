@@ -1,5 +1,24 @@
 # Changelog — ark-agent-os
 
+## 2.1.14 (2026-11-09)
+
+> **網站帳號**：信箱＋密碼註冊登入、Google 登入、三級角色（viewer／operator／owner）、owner 存取權限審批頁。
+> 移植自 nana 先行版（2026-11-06 上線）；計畫 `docs/plans/ark-os-web-accounts-port-plan.md`，規格／設計 `ark-os-google-login-*`。
+> 版號：Paddy 11-09 拍板沿 2.1.x、不跳 minor（原訂 2.2.0 作廢）。
+> **預設關閉**：沒設 `AUTH_ACCOUNTS`／`web.auth.accounts` 的部署，登入行為與 2.1.x 完全相同。
+
+- **開啟方式**：`.env` 設 `AUTH_ACCOUNTS=1`、`AUTH_OWNERS=<你的信箱>`（或 team.yaml `web.auth.accounts／owners`），重啟後用該信箱註冊即成為 owner。使用指南 `docs/guides/website-accounts.md`
+- **註冊申請 → owner 審批**：未列名者註冊後進等待頁，owner 在後台「存取權限」（`/app/access`）核准並指定角色，申請人**自動登入**（簽章 cookie，不必再輸密碼）；新申請經 daemon 的 TG 通知 owner
+- **三級角色**：viewer 只看；operator 可對話、上傳、操作；owner 另可管權限、系統、排程。每個請求重讀帳號 —— 停用、改角色下一個請求生效
+- **安全**：密碼 scrypt、5 次失敗鎖 15 分鐘；所有寫入 CSRF double-submit（頁面自動帶 header）；公開唯讀（`CONSOLE_PUBLIC_READ`）不含 owner 頁；最後一位 owner 不能降權；team.yaml `web.auth.users` 鎖定名單網頁不可改
+- **Google 登入**（選配）：`pip install 'ark-agent-os[google]'`＋`GOOGLE_CLIENT_ID／SECRET`；OIDC 授權碼＋PKCE、nonce、信箱已驗證、帳號 sub 綁定。redirect URI 非 localhost 需 HTTPS 正式網域
+- **CLI** `ark-agent-os auth doctor／users／approve／deny／role／disable／enable／revoke／break-glass`：break-glass 產生 15 分鐘、單次的緊急登入連結，使用時通知所有 owner
+- **health** 新增 `auth`（mode、帳號數、待審數、owner 數、30 天 break-glass 次數；不含個資）
+- **自建網站**：`from ark_agent_os.website.auth import mount_auth`；同名頁面範本優先用自建網站的，只掛 auth 路由
+- session 表加 `email` 欄（舊庫自動遷移）；系統頁版本卡改顯示 ark-agent-os
+- 修 `test_web_migrate_dryrun_runs`：改用暫存 home（9a3c860 封存 apps/team-website 後失效）
+- 測試：帳號 45 項（Phase 1 18、Phase 2 16、Phase 3 11），反證 11 項各自紅
+
 ## 2.1.13 (2026-11-09)
 
 > 由 v2.1.12 tag 開 hotfix 分支發佈：main 上另一個 session 的網站帳號功能（Phase 0+1，計畫 2.2.0）**不在本版**。依據：`docs/reports/review/2026-11-09-ark-agent-os-architecture-review.md` F-3、F-7
