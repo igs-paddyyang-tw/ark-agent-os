@@ -1,5 +1,18 @@
 # Changelog — ark-agent-os
 
+## 2.1.16 (2026-11-10)
+
+- **secret_scan 誤報**（AIPC 11-10 回報；問題單 `docs/issues/2026-11-10-secret-scan-false-positives.md`）：`sk` 規則加左邊界（`task-closeout`、`risk-tier` 尾端的 `sk-` 不再命中）；`assign` 值不以 `` $ ` \ ( * < `` 開頭（`TOKEN=$(grep …)`、`token = <your-token>`、`***masked***` 不再命中）。真樣式（`sk-…`、`sk-ant-…`、`ghp_…`、`password=…`）仍命中
+  - `secret_audit` 的 P0 訊息講明 ack 檔在**專案根** `state/secret_audit_ack.json`（寫到 `agents/<x>/state/` 不會生效）
+  - `redaction-vectors.yaml` 補 6 負例、3 正例；新守門 `tests/test_secret_scan_false_positives.py` 直接對 `ark_agent_os.secret_scan` 跑全部向量（既有 parity 測試 27 條跳過，不能當證據）。反證：拿掉左邊界、拿掉 assign 排除、拿掉 P0 提示各自紅
+
+- **`/publish` 確認卡與套件預設改成實際行為**（Paddy 11-10）：卡片原寫「管理 agent 會更新 MEMORY.md / README.md」—— 本機部署根目錄都沒有 MEMORY.md（記憶導覽在 `.kiro/steering/`），team 版也不派 agent 改寫。改列實際發布的 `README.md`、`TODO.md`（或 `docs/TODO.md`）、`memory/daily/`
+  - 白名單加 `TODO.md`、`docs/TODO.md`；新增 `PUBLISH_DEFAULT_FILES`（/publish 預設帶的檔，不含 MEMORY.md；MEMORY.md 仍在白名單只為相容直接呼叫 `publish_repo` 的舊呼叫端）
+  - 預設 commit 訊息單一來源：確認卡原顯示「由管理 agent 產生」、實際 commit 卻用另一句寫死字串 → 改成 `cmd.publish.default_message`＝實際 commit 訊息（`chore: 發布收尾更新（memory/daily + readme + todo）`）
+  - 守門：確認卡列的檔＝`PUBLISH_DEFAULT_FILES`、不含 MEMORY.md；預設訊息兩處同源（反證各自紅）
+  - 部署端 `messages.yaml` 是全註解範本、無覆寫 → 升版即生效；範本註解裡的舊文字不影響行為
+- **failover 額度告警送不出去**（hoyeah 2.1.15 實錄：`'Daemon' object has no attribute 'notify_paddy'`）：`FailoverGuard` 綁的是 `Daemon`，`notify_paddy` 只在 `DaemonAPI` → 每次額度用完的 TG 告警都失敗、只留 log。改在 `run_team` 建好 DaemonAPI 後改綁（比照 decision_mgr）。原測試用自帶 `notify_paddy` 的假 daemon 所以一直綠 → 新守門檢查真實類別形狀＋實際綁定（反證紅）。問題單 `docs/issues/2026-11-10-failover-notify-paddy-wrong-object.md`
+
 ## 2.1.15 (2026-11-09)
 
 > 原本要以 2.1.14 發（hotfix），但網站帳號已先以 2.1.14 發布（我方未先在遠端佔號而撞號）→ 改發 2.1.15，以 main 為基底（含 2.1.14 帳號功能，預設關閉）
