@@ -1,5 +1,20 @@
 # Changelog — ark-agent-os
 
+## 2.1.20 (2026-11-12)
+
+> agent-os-alignment Phase 2（計畫 `docs/plans/agent-os-alignment-plan.md`；報告 F-1）
+
+- **Agent 身分驗證 `agent_identity`（預設 warn：只記錄、不改行為）**（agent-os-alignment Phase 2；報告 F-1：`/api/send` 的 `source` 取自請求本文、全 daemon 共用一個 token → worker 填 admin 的名字就能繞過派工限制）
+  - 新模組 `agent_identity.py`：daemon 啟動每個 instance 時發一個只在記憶體的 token，經**子進程環境變數** `ARK_TEAM_API_TOKEN` 交給它的 team MCP（不寫進 `mcp.json`：部分部署把它納入版控）；ACP 的 `mcpServers` 也在記憶體帶上
+  - 寫入請求依 token 反查呼叫者：instance token＝agent、共用 token＝system；`/api/send` 的 `source` 與 token 身分不一致 → `warn` 記錄、`enforce` 改用 token 身分；共用 token 以某個 agent 名義送 → `enforce` 拒絕（`web:`／`scheduler`／`<instance>@ide` 不受影響）；agent 以別人名義 `/api/reply` → `enforce` 拒絕
+  - `/api/health.agent_identity`：`mode`、`mismatches`、`last_mismatch`（只記名稱）、`agent_calls`（>0 代表 token 有送到 MCP）、`active`（`api_auth: off` 時不驗）
+  - 設定 `agent_identity: off|warn|enforce`（頂層，環境變數 `ARK_TEAM_AGENT_IDENTITY` 優先）；非法值照 warn 執行並進 `degraded config_invalid:`（比照 `api_auth`）
+  - **切 enforce 的判準**（OQ-101）：各部署跑滿 24 小時 `mismatches == 0` 後，由部署擁有者手動改設定
+  - 新端點 `POST /api/tasks/dispatch`：依賴解開與驗收任務改由 daemon 讀任務板（pending、依賴都完成）後以**建任務者**名義代派 —— 原本 worker 的 MCP 直接以 leader 名義送，正是要擋的冒充
+  - ⚠ 保證範圍：同一 OS 使用者下沒有 sandbox 時，惡意 agent 仍可讀其他進程的環境或 `state/api_token`；本版擋「填錯名字」與「順手冒用」並留紀錄，完整保證要等 sandbox（Phase 6）
+  - 未做：跨隊 `ga:` 轉發仍送原 `source`（本機部署未使用；enforce 下若與接收端 instance 同名會被拒，FR-106 延後）
+  - 守門 `tests/test_agent_identity.py`；反證：拿掉比對／回覆檢查／子進程 env 各自紅（5 項）
+
 ## 2.1.19 (2026-11-12)
 
 > 以 main 為基底（含 2.1.18 的用量守門）。agent-os-alignment Phase 1＋4；Phase 2（agent 身分）另發 2.1.20。
