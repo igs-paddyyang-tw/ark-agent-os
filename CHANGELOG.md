@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.1.17 (2026-11-10)
+
+- **preflight `exit_liveness` 把 P2P 政策拒絕當送出失敗**（雲端 game-team 11-10：worker 間 P2P 超輪 403 共 27 次，重啟後 3 個 P0 誤報；問題單 `docs/issues/2026-11-10-preflight-exit-liveness-p2p-policy-false-p0.md`）：`tool_calls.log` 新增 `✗policy`（`/api/send` 403、`allowed_targets` 拒絕），`exit_liveness` 不計它；真失敗（非 403、連線錯誤）仍 `✗`→P0；舊 log 的 `✗` 照舊視為真失敗
+  - 工具回傳改「發送被擋（政策）／委派被擋（政策）: <daemon 的說明>」—— agent 直接看到升級路徑，不再是一整包 dict
+  - 新 P2 探針 `p2p_blocked_rate`：1 小時內被擋 ≥ 5 次 → 提示 worker 間討論過多（每輪都是一次 LLM 回合）；P2 不進 `degraded`、不單獨通報
+  - 守門 `TestPolicyRejection`（AC-1～4）、`TestPolicyMark`；反證：拿掉 preflight／team_mcp 的分類各自紅
+  - ⚠ 升級前已寫入的舊 `✗`（實為政策拒絕）仍視為真失敗 —— 誤報殘留到該 instance 下一次成功送出，或滿 24 小時判陳舊才消失；`POST /api/preflight/run` 清不掉
+
 ## 2.1.16 (2026-11-10)
 
 - **secret_scan 誤報**（AIPC 11-10 回報；問題單 `docs/issues/2026-11-10-secret-scan-false-positives.md`）：`sk` 規則加左邊界（`task-closeout`、`risk-tier` 尾端的 `sk-` 不再命中）；`assign` 值不以 `` $ ` \ ( * < `` 開頭（`TOKEN=$(grep …)`、`token = <your-token>`、`***masked***` 不再命中）。真樣式（`sk-…`、`sk-ant-…`、`ghp_…`、`password=…`）仍命中
