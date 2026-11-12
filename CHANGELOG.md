@@ -1,5 +1,18 @@
 # Changelog — ark-agent-os
 
+## 2.1.18 (2026-11-12)
+
+- **用量守門 `usage_guard`：同時算成本（USD）與呼叫次數，兩者皆可告警與暫停**（kiro-bot 雲端維運 11-10 提；問題單 `docs/issues/2026-11-10-usage-guard-cost-and-requests.md`；規格 `docs/specs/issues-1110-batch-spec.md` FR-006～013）。原本只靠 agent 自報 USD，雲端三隊整天 $0，額度用完時全隊靜默
+  - 設定頂層改 `usage_guard`（`cost_guard` 仍可用，並存時 `usage_guard` 優先並記 warning）；巢狀 `cost`／`requests`（`daily_limit`、`warn_at_percentage`、`action_on_limit: none|warn_only|pause`、`per_instance_limits`、`count_failed` 預設 true）／`exempt`／`notify`。**舊設定不改行為不變**
+  - daemon 自動計次：**真正送出 prompt 時**才 +1（`_queue_worker` 兩處投遞；存 overflow／過期／取消不計、重播計 1 次），`send_input` 例外另記 `failed_requests`；入口擋下記 `rejected`
+  - 達限且 `pause`：新訊息不入隊；**使用者會收到固定提示**（TG 私訊、指令路由、web `/api/chat/send` 帶 `notice`），不再靜默或誤說「離線」；`exempt` 照計次但不被擋；進行中的一輪跑完不強殺
+  - 各維度各自判斷 `action_on_limit`；上限為 0 的維度＝不限制（當天殘留的暫停旗標不再生效）
+  - 告警（warn 80%／達限／恢復）走 `DaemonAPI.notify_paddy`，同事件每日一次；日界線自動恢復，`POST /api/costs/resume` 手動恢復
+  - `/api/health.usage`、`/api/costs` 加次數欄位；日報附當日次數
+  - SQLite `spends` 加欄位（冪等 migration，舊資料為 0）
+  - 守門 7 支（設定、CostGuard、閘門、API、相容反證、入口出口 AST、使用者提示）；paddy 實機：web 與 TG 私訊達限各只回一則提示、owner 告警送達、上限調回 0 後閘門與 health 一致放行
+  - ⚠ 未做：團隊總量上限；web 前端是否顯示 `notice` 未驗證；次數只是 Kiro credit 的代理指標
+
 ## 2.1.17 (2026-11-10)
 
 - **preflight `exit_liveness` 把 P2P 政策拒絕當送出失敗**（雲端 game-team 11-10：worker 間 P2P 超輪 403 共 27 次，重啟後 3 個 P0 誤報；問題單 `docs/issues/2026-11-10-preflight-exit-liveness-p2p-policy-false-p0.md`）：`tool_calls.log` 新增 `✗policy`（`/api/send` 403、`allowed_targets` 拒絕），`exit_liveness` 不計它；真失敗（非 403、連線錯誤）仍 `✗`→P0；舊 log 的 `✗` 照舊視為真失敗
