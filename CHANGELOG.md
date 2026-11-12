@@ -1,5 +1,36 @@
 # Changelog — ark-agent-os
 
+## 2.1.19 (2026-11-12)
+
+> 以 main 為基底（含 2.1.18 的用量守門）。agent-os-alignment Phase 1＋4；Phase 2（agent 身分）另發 2.1.20。
+>
+> agent-os-alignment Phase 1（計畫 `docs/plans/agent-os-alignment-plan.md`；依據報告 `docs/reports/review/2026-11-12-agent-os-standard-vs-ark-agent-os.md` F-3、F-7、F-10）
+
+- **`smart_delegate` 不再回報假完成**：原本讀 `/api/send` 回應裡不存在的 `response` 鍵 → 每個任務的「產出」都是字串 `"sent"`，router 據此回「✅ task-xxx 完成」；設了 `loop_back` 時驗收者的回覆也只是 `"sent"` → 判不通過 → FeedbackLoop 對執行者連發「請修正」；`depends_on` 回「已排入佇列」但 router 每次呼叫新建、依賴永遠不會解開
+  - 改為：自動選 worker（沿用 `AgentDiscovery`）→ 任務板建任務 → 派出一則訊息，回傳「📤 已派給 X，尚未完成」＋任務編號；完成與否看任務板
+  - `loop_back` 只寫進派工訊息（請執行者做完交給誰驗收），不再自動送驗收或修正要求
+  - 帶 `depends_on` 直接回錯誤並給改法（可跨呼叫的依賴在 Phase 4 以任務板重做）
+  - 工具說明同步改寫（不再寫「DAG 依賴管理＋失敗自動修復」）
+  - 守門 `tests/test_smart_delegate_honest.py`：回傳不含完成／通過、有 loop_back 也只送一則、AST 確認不讀 `response` 鍵；反證：還原舊版 6 項全紅
+- **MCP `wiki_ingest` 入庫前過消毒關卡**：原本這條路直接寫 wiki，同一份帶提示注入的素材經 ark-wiki-engine 腳本會被隔離、經 MCP 卻入庫（OWASP ASI06）
+  - 用套件內 ark-wiki-engine 的同一份 `wiki_guard`（規則單一來源）；命中時移到 `raw/_quarantine/`＋隔離報告、log 記 `quarantine`、回傳命中規則與處置方式
+  - 關卡載入失敗時拒絕入庫（不靜默跳過）
+  - 頁面加 `trust: deterministic`（全文原樣搬運）；`log.md` 改 ark-wiki-engine 欄位 `date | op | page | trust | by | note`
+  - 不改呼叫整支 `wiki_ingest.py`：那支產「骨架待 LLM 填」，這條路要保留全文（1.13.1）
+  - 守門 `tests/test_mcp_wiki_ingest_guard.py`；反證：關卡換成永遠放行時注入素材進 wiki
+- **任務狀態機＋可跨重啟的 `smart_delegate`**（agent-os-alignment Phase 4；報告 F-3、F-8）
+  - 新模組 `task_states.py`：狀態集合、轉移表、終態、圖示、A2A 1.0 對映的單一來源；新增 `input_required`（等人或上游回答）、`canceled`、`rejected`
+  - `TaskBoard.update_status` 套轉移表：終態（completed／failed／canceled／rejected）不能再改，錯誤訊息列出可改成什麼；同狀態允許（追加備註、改派）；不認得的舊狀態只能取消；pending 可直接 completed／failed（短任務常不經 in_progress）
+  - `create_task` 有未完成依賴 → 建成 `blocked`（原本一律 pending，依賴等於沒作用）；依賴編號不存在 → 拒絕並請先查 list_tasks（原本永遠不會解開又沒有錯誤）
+  - 依賴解開後**自動派出**：原本 `_check_unblock` 只把 blocked 改 pending，沒有任何程式派工。現在 `update_task(completed)` 對解開的任務以建任務者的名義送出派工，失敗也講出來
+  - `smart_delegate` 改以任務板為唯一來源：`depends_on` 有效（等依賴時回「🔒 尚未派出」）、`loop_back` 存成任務的驗收者，完成時自動建驗收任務並附執行者的交接摘要與驗證方式；`rejected` 也要 summary
+  - 移除只被舊 `smart_delegate` 用到的 `a2a_router.py`、`a2a_graph.py`、`a2a_feedback.py`（`a2a_discovery` 選 agent 保留）
+  - 舊值相容：`done` 讀成 completed、`cancelled` 讀成 canceled（實測 paddy 8 筆 `done`、ninja `done`／`cancelled`）；`archived` 等未知值保留原值、不進進行中清單、只能取消
+  - 優先序對映修正：`priority: 1` 原對到任務板不存在的 `urgent` → 改 `critical`
+  - 連動：MCP 工具 schema、`/tasks` 摘要與匯出、網站看板與 PATCH（非法轉移回 409）、dashboard 統計、任務板圖片腳本都改讀 `task_states`
+  - 守門 `tests/test_task_states.py`、`tests/test_smart_delegate_durable.py`；反證：拿掉轉移檢查與更新後連動，9 項紅
+- **移除從未被 import 的 `audit_logger.py`、`event_bus.py`**（AST 掃 src／tests／scripts 零引用；實際稽核走 `event_log.py`）。`model_failover` 已有 `degraded` 標示未實作，不另改
+
 ## 2.1.18 (2026-11-12)
 
 - **用量守門 `usage_guard`：同時算成本（USD）與呼叫次數，兩者皆可告警與暫停**（kiro-bot 雲端維運 11-10 提；問題單 `docs/issues/2026-11-10-usage-guard-cost-and-requests.md`；規格 `docs/specs/issues-1110-batch-spec.md` FR-006～013）。原本只靠 agent 自報 USD，雲端三隊整天 $0，額度用完時全隊靜默
