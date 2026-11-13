@@ -1,5 +1,22 @@
 # Changelog — ark-agent-os
 
+## 2.2.0 (2026-11-13)
+
+> **2.2.0**（Paddy 11-10 定：command 排程是新的 scheduler 類型，以 minor 區分）。spec `docs/specs/issues-1110-batch-spec.md` FR-014～018；計畫 `docs/plans/issues-1110-batch-plan.md` Phase 4；問題單 `docs/issues/2026-11-10-scheduler-command-job.md`
+
+- **`ark-agent-os auth doctor`（及其他 `auth` 子指令）改讀部署的 `<home>/.env`**（`load_dotenv(override=False)`）：原本只看行程環境，systemd 外手動執行時誤報「帳號模式關閉」；守門 `tests/website/test_web_accounts_ops.py`
+- **排程新增 `type: command`：直接跑專案根內的腳本，零 LLM**（原本排程只能交給 agent 或用固定 `_builtin:`；game 一天約 20 次 git／檔案統計都經 LLM）
+  - 設定：`command`（字串陣列、不經 shell）、`cwd`、`timeout_seconds`（預設 60、上限 3600）、`env_pass`、`on_failure: notify|silent`、`notify_on_success`；`type` 不寫＝prompt，舊 `scheduler.yaml` 不用改
+  - 安全：`command[0]` 與 `cwd` 必須在專案根內（PATH 上的 `git`／`python` 不收，請包成專案內腳本或用 `.venv/bin/python`）；環境變數預設只帶 PATH／HOME／語系等最小集合，`.env` 的 token 要 `env_pass` 明列；輸出只留末 4 KB 並遮蔽機密
+  - 執行：`asyncio.create_subprocess_exec`（不阻塞事件迴圈）、自己一個 process group，逾時 SIGTERM→5 秒→SIGKILL（含孫進程）；上一輪未結束本輪跳過並留 log；不經 `_send`、不產生 session/prompt、不計入用量守門
+  - 通知：失敗（exit≠0／逾時／啟動失敗）連續多次只在第一次私訊 owner，恢復時再一則；走 `DaemonAPI.notify_paddy`（與 failover 同出口），輸出已 HTML 跳脫
+  - 觀測：`JOB_RUN` 加 `type=command;exit_code=…;output=…`；`jobs_snapshot` 加 `type`、`last_exit_code`、`consecutive_failures`
+  - 驗證：設定不合法的 job 不註冊並進 `degraded config_invalid:`（每條附改法）；preflight 新增團隊層 `command_job:<name>`（P1）：腳本不存在／沒有執行權限／cwd 不存在
+  - `init` 產生的 `scheduler.yaml` 附一段註解範例
+  - 通知出口綁 `DaemonAPI`（`run_team` 設 `scheduler._api`）：實機發現 scheduler 原本找 `daemon.api`（不存在）→ 通知只進 log；**既有的 preflight 報告私訊也因此一直沒送出**，一併修好
+  - 只保證 Linux／WSL（Windows 未驗證，OQ-004）；daemon 重啟會中斷執行中的腳本（OQ-003）
+  - 守門 `tests/test_scheduler_command.py`（26 項）；反證：不分流／每次都通知／繼承全部環境變數各自紅
+
 ## 2.1.21 (2026-11-12)
 
 - **重啟時任務板派工不再遺失**（2026-11-12 TG 跨重啟實測：宮城派 A 給櫻木做到一半、B 依賴 A；重啟 paddy 後 A 永遠 pending、B 永遠 blocked，只留一行 info log）
