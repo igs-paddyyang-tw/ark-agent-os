@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.1.21 (2026-11-12)
+
+- **重啟時任務板派工不再遺失**（2026-11-12 TG 跨重啟實測：宮城派 A 給櫻木做到一半、B 依賴 A；重啟 paddy 後 A 永遠 pending、B 永遠 blocked，只留一行 info log）
+  - `persist_for_restart` 原本只重送「使用者來源」的在途訊息，agent 間派工一律丟棄。現在在途訊息若是任務板派工（含「任務編號 `ID`」）且任務仍是 pending／in_progress／input_required，就存進 overflow 重送**一次**（新前綴 `TASK_REDELIVER_PREFIX`：請 agent 先 `get_task` 確認狀態，已完成就不重做；不叫它告訴使用者）；其他 agent 間訊息照舊不重送
+  - 延後啟動（`auto_start: false`）的 instance 開機時若有待重送訊息 → 立即喚醒。原本 STOPPED 的 instance 沒有 queue worker，連使用者訊息的重送也要等下一則新訊息才會觸發
+  - 崩潰重送路徑同樣認得任務重送前綴（不無限重試）
+  - 守門 `tests/test_task_redeliver_on_restart.py`；反證：拿掉任一修正各自紅
+
 ## 2.1.20 (2026-11-12)
 
 > agent-os-alignment Phase 2（計畫 `docs/plans/agent-os-alignment-plan.md`；報告 F-1）
