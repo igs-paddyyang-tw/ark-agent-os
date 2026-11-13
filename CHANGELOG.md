@@ -1,5 +1,25 @@
 # Changelog — ark-agent-os
 
+## 2.2.1 (2026-11-13) —— skills 啟動檢查與 ark-skills-sync 內建、deploy 下載退路
+
+> 設計：kiro-cli `docs/designs/skills-sync-architecture-design.md`；計畫 `docs/plans/2026-11-13-skills-self-service-update-plan.md` S3。
+> skill 端：ark-agent-skills `ark-skills-sync` 3.0.2（r43；ark-skills-align 併入）。
+
+- **內建 skill 新增 `ark-skills-sync`**（`DEFAULT_SKILLS` 12 個），**只部署給 manager／admin**（`KiroBackend.ROLE_SCOPED_BUNDLED`）；其餘內建照舊給每個 agent
+- 🩹 **`skills.policy: once` 會補回空殼**：原本只看目錄在不在，只剩 `__pycache__`、缺 `SKILL.md` 的目錄永遠不會補（11-13 實測 kiro-bot 8 個 agent×10 個）；有 `SKILL.md` 的照舊不覆寫
+- **啟動檢查 `skills_doctor`**：daemon 啟動 60 秒後背景跑**內建版** `skills_sync.py doctor`（不阻塞、不碰網路），結果寫 `state/skills-doctor.json`
+  - 必要清單由套件依 team.yaml 推出：每個 instance 工作目錄＝內建 skills（依角色範圍）；`skills.policy: skip` 的部署不要求內建
+  - 缺（MISSING）／壞（BROKEN：缺 SKILL.md）> 0 → `degraded` 加 `skills:missing=N,broken=M`（每次重算）；舊名殘留、落後、LOCAL 只進 health
+  - 設定 `kiro_files.skills.doctor: off｜warn｜repair`（預設 warn）；repair 只從內建版補 MISSING／BROKEN，客製不碰。🔴 YAML 的裸字 `off` 會被解析成布林 → 已對應回 off
+- **`/api/health.skills`**：沒宣告 v2 `defaults.skills` 的部署（＝全部）改呈現 doctor 結果（`status／checked_at／mode／summary`）；有宣告的照舊走 align_sync heartbeat
+- **CLI `ark-agent-os skills …`**：參數原樣轉給內建 `skills_sync.py`（status／plan／update／install／remove／doctor／residue），`--root` 預設 team home；`doctor` 自動帶必要清單與內建目錄
+- 🩹 `scripts/sync_default_skills.py`（build 前同步內建）改從上游 **`git archive HEAD`** 取：原本複製工作樹，會把上游 clone 裡別人未提交的 WIP 打包進套件（實測 ark-wiki-engine 2 檔）；環境變數同 skill 端（`ARK_SKILLS_UPSTREAM`，`ARK_AGENT_SKILLS_DIR` 為別名），沒設看 `~/kiro-cli/github/shared/ark-agent-skills`
+- 測試：`tests/test_skills_doctor.py` 6 項＋`test_skills_deploy.py` 新增 3 項；反證：拿掉空殼判定／角色範圍 → 2 紅、不清舊 degraded／YAML off 不對應 → 2 紅
+
+- **`deploy upgrade` 下載 wheel 的退路**（TODO P1；10-27 ninja／nana 升 1.13.5 踩過）：GitHub API 查 Release 失敗（匿名配額每小時 60 次用盡等）時，改用直接下載網址 `github.com/<repo>/releases/download/vX/<whl>`（不吃 API 配額、不帶 token 以免轉址洩漏），下載後照樣驗內容與版號；守門 `tests/test_deploy_fetch_fallback.py`（反證：退回舊碼 3 項紅）
+- 新 agent 的 BRAIN.md 判準段同步 ark-agent-init 2.9.0（上游 `97215bf`：MEMORY.md 里程碑改「一句、20 行滾動窗口、每行 ≤ 160 字，先跑 `memory_check.py`」；長期拍板寫「🔒 常駐定案」）
+- 錯誤訊息與版號守門的舊套件名改為 `ark-agent-os`（`site_server.py` 白名單提示、`test_doc_version_drift.py`）
+
 ## 2.2.0 (2026-11-13)
 
 > **2.2.0**（Paddy 11-10 定：command 排程是新的 scheduler 類型，以 minor 區分）。spec `docs/specs/issues-1110-batch-spec.md` FR-014～018；計畫 `docs/plans/issues-1110-batch-plan.md` Phase 4；問題單 `docs/issues/2026-11-10-scheduler-command-job.md`
