@@ -1,5 +1,36 @@
 # Changelog — ark-agent-os
 
+## 2.2.3 (2026-11-15) —— 成本上限執行期調整（免重啟）＋拍板中心 M1＋home 守門
+
+### 成本上限執行期調整（免重啟）
+
+> 需求 `docs/issues/2026-11-14-cost-guard-runtime-adjust.md`；spec／design／plan `cost-guard-runtime-adjust-*`（OQ-C1～C5 11-14 照建議拍板）。
+
+- **免重啟調上限、重置花費**：`POST /api/costs/limits`（個別／全域／全隊、警告線、到期）、`/api/costs/limits/reset-to-default`、`/api/costs/reset`（成員或全隊，花費＋次數）、`GET /api/costs/audit`；**agent token 一律 403**（不能幫自己加預算），`reason` 必填
+- **覆寫檔 `state/cost_overrides.yaml`**：不改 team.yaml；預設當日 24:00 到期（午夜自動還原並記稽核）；**壞檔 fail-closed**（回 team.yaml 值、health degraded `cost_overrides_invalid`、owner 告警），手改超過硬上限的欄位會被丟棄
+- **全隊加總上限 `team_total_limit_usd`**：達上限全隊暫停（exempt 照算不停），與個別上限並存；暫停原因存 `paused_reason`，調高全隊上限只恢復「因全隊加總」暫停的成員
+- **防失控**：`hard_cap_per_instance_usd`／`hard_cap_team_usd`（覆寫不得超過）、`max_raises_per_day`（預設 3，調降／還原不計）、燒錢告警（`burst_window_minutes` 內 ≥ 上限 `burst_pct`%，只告警不暫停）；個別與全隊暫停都通知 owner
+- **TG**：`/status` 附成本區塊；新指令 `/cost`（提高個別／全隊、重置成員／全隊、恢復暫停、還原預設）—— 確認畫面＝執行內容、取消不改資料、舊按鈕 5 分鐘過期、自訂金額、超過硬上限的金額按鈕不顯示；allowlist 外按鈕被拒並記稽核
+- **網站**：成本頁「今日上限與狀態」（只顯示；操作走 TG）；`GET /api/costs` 補 `limits`／`overrides`／`team_*`／`paused_reason`／`hard_caps`／`raises_today`
+- 🔴 回滾注意：新欄位寫進 team.yaml 後，**舊版 loader 會因未知欄位拒絕載入** → 回滾前先拿掉這些欄位；`spends.__team__` 列舊版會當成一位成員顯示（可手動刪）
+- 金額仍是 agent 自報 USD：kiro 後端記 $0，硬上限與全隊加總只約束會自報的後端
+- 守門 64 項（`test_cost_overrides`／`test_cost_team_total`／`test_cost_ops`／`test_cost_tg`／`test_cost_web_health`）；每階段反證皆紅
+
+### 拍板中心 M1＋home 守門
+
+> spec `docs/specs/decision-center-spec.md`（OQ-DC-1～5 Paddy 11-14 照建議拍板）；design `docs/designs/decision-center-design.md`。M2（後台頁）～M5 待做。
+
+- 🔴 **home 與 team.yaml 不同部署 → 拒絕啟動**（11-14 事故：kiro-bot 的 agent 從自己的 shell 重啟 lobby-bot，繼承 `ARK_TEAM_AGENT_HOME=~/kiro-cli` → lobby 的 team.yaml 搭上 kiro-cli 的 home：讀錯 `.env`、把 TEAM.md／mcp.json／agent json 寫進 kiro-bot 的 agent 目錄、kiro-bot 的 admin 被換成 lobby 的身分、state 寫進 kiro-bot 的成本與事件）。`run_team` 在**載入 `.env` 之前**比對 home 與 team.yaml 所在目錄，不一致就 CRITICAL＋拒絕，訊息附改法（systemd 重啟或明確指定 home）。守門 `tests/test_home_config_guard.py`（6）；反證：比對永遠放行、守門移到 `.env` 之後 → 各自紅
+- **拍板中心服務 `decision_center.DecisionService`**：等 owner 決定的事集中登記在 `state/decisions.db`（冪等擴充欄位：`key`、短碼 `D<n>`、來源、建議、決定後動作 on_decided、ask_count）；**一條執行路徑**給 web／TG／MCP
+  - `register`：同 key 已在等 → 不重建、不重送通知、ask_count+1（＝lobby D4）
+  - `plan` → `submit(token)`：確認頁顯示的計畫就是執行的那份（token 一次性、5 分鐘）；逐題獨立，單題動作失敗不影響其他題；條件更新防同題雙重送出
+  - 動作：`notify`（通知請求者／成員）、`unlock`（blocking 任務 blocked→pending 並派出）、`dispatch`（建任務派出，`external_id=key`）；`writeback` 留 M3
+  - `overturn`：24h 內翻案、題目重開、列出已派任務供人工處理（不自動取消）
+- **daemon API**：`POST /api/decisions/register`（requester 取驗證後的 agent 身分）、`GET /api/decisions`、`POST /api/decisions/plan|submit|{ref}/overturn`（**agent token 一律 403**：agent 不能替 owner 拍板）
+- **MCP 工具 `decision_request`**（admin／leader／manager；worker 不給 —— 有疑問先問 leader）：取代在回覆裡打 1️⃣2️⃣3️⃣
+- 發現：既有 `DecisionManager` 呼叫 `DaemonAPI.send_message`（不存在）與 `unlock_task`（no-op）—— 迴路五部署 0 筆請求所以從沒爆；新服務不沿用，舊路徑待 M2 併入
+- 守門 `tests/test_decision_center.py`（18）＋`test_decision_center_api.py`（6）；反證：拿掉 key 查重／條件更新／owner-only、worker 白名單加入工具 → 各自紅
+
 ## 2.2.2 (2026-11-14) —— 派工與回報（lobby D1～D3）＋AGENTS.md 只放根
 
 > 問題單 `docs/issues/2026-11-14-dispatch-issues-from-lobby.md`；spec `docs/specs/dispatch-improvements-spec.md`。D4／D6／D7 規格待拍板。
