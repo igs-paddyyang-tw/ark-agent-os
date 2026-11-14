@@ -1,5 +1,15 @@
 # Changelog — ark-agent-os
 
+## 2.2.2 (2026-11-14) —— 派工與回報（lobby D1～D3）＋AGENTS.md 只放根
+
+> 問題單 `docs/issues/2026-11-14-dispatch-issues-from-lobby.md`；spec `docs/specs/dispatch-improvements-spec.md`。D4／D6／D7 規格待拍板。
+
+- 🔴 **AGENTS.md 只放 workspace 根（對齊 ark-agent-init）**：上游規定 `.kiro/steering/` 永遠不放 AGENTS.md（唯一例外：指回根的 symlink），套件卻有三處預期它在 steering／brain —— `workspace.DEFAULT_CONTEXT` 的 always 列了 AGENTS.md（`_declared_paths` 算出 `.ark/brain/AGENTS.md`、claude 轉接器遇到 steering symlink 會 @ 匯入兩次）、`ark migrate` 把 steering 的 AGENTS.md（含 symlink）搬成 brain 實體複本、`kiro status` 把 `steering/agents.md` 列為受管檔。改為：預設 context 不含 AGENTS.md、ark.yaml 若仍列則讀取時濾掉；migrate 對 steering AGENTS.md 分流（symlink／相同內容→移除、根沒有→搬到根、內容不同→不動並提示人工合併）；`kiro status` 看根那份。守門 `tests/ark_agent_os/test_agents_md_root_only.py`（12，含掃描 workspace／ark_migrate／backend／cli 的字面值）；反證 4 組各自紅
+- **D1 新 MCP 工具 `commit_own(paths, message)`**（所有角色）：多 agent 共用工作樹＋共用 git index 時，A `git add` 未提交、B `git commit` 會把 A 的檔整批帶走（lobby `d059e58`）。改用暫時 index 組 commit，`update-ref` 帶舊值（HEAD 被移動就拒絕重試），提交後只對自己的路徑重設共用 index；回報共用暫存區還剩幾個別人的檔。路徑可相對 agent 工作目錄或專案根。不跑 pre-commit hook
+- **D2 peer 回覆逾時先看進展**：原本只看對方有沒有回訊息 → 對方任務已 completed 仍提醒「未回覆」。現在：自請求起對方有任務 completed → 改發告知「先 get_task 看交接」、不催；剛過去這一輪任務有更新或有輸出 → 不提醒再等一輪（最多 3 輪）；照常提醒時附對方未結任務（最多 5 筆）。讀任務板失敗一律照舊提醒
+- **D3 任務編號 `external_id`**：`create_task`／`delegate_task`／`smart_delegate` 可帶專案 todo 編號；同編號已有進行中或已完成的任務 → 拒絕並指出是哪個任務（取消／拒絕／失敗後釋放）；`delegate_task` 撞號在派出前就擋。標題含 `N-4` 之類編號卻沒給 `external_id` → 回覆提醒改用參數。`list_tasks`／任務板摘要顯示編號
+- 守門 `tests/test_dispatch_d1_d3.py`（24 項）；反證：D1 改用共用 index、D2 一律不看進展／視窗改用請求起點、D3 拿掉撞號檢查 → 各自紅（1／2／1／4）
+
 ## 2.2.1 (2026-11-13) —— skills 啟動檢查與 ark-skills-sync 內建、deploy 下載退路
 
 > 設計：kiro-cli `docs/designs/skills-sync-architecture-design.md`；計畫 `docs/plans/2026-11-13-skills-self-service-update-plan.md` S3。
