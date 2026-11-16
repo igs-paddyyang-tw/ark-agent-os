@@ -1,5 +1,17 @@
 # Changelog — ark-agent-os
 
+## 2.2.4 (2026-11-16) —— cost_guard 恢復（F1～F5）＋idle eviction 在途輪（E1～E3）＋任務板舊格式
+
+- **idle eviction 不再殺掉「有一輪還在跑」的 instance**（問題單 `docs/issues/2026-11-16-idle-eviction-kills-inflight-turn.md`，E1～E3）：回收前先看 `Daemon._busy`（ACP `turn_in_flight`；其他 transport 看在途紀錄）與訊息佇列；有一輪在跑或有訊息在等 → 不回收；超過 idle_timeout 仍零輸出 → `log.warning`＋health `degraded` 加 `inflight_no_output:<name>`（輪結束或 instance 停止後自癒），交給 hang 偵測／告警，不靜默殺。守門 `tests/test_idle_eviction_inflight.py` 6 項（真實 Daemon；拿掉 E1 判斷 3 項紅）
+- **cost_guard 旗標被清後 PAUSED instance 永遠不恢復**（問題單 `docs/issues/2026-11-15-cost-guard-paused-instance-not-resumed.md`，F1～F5 一版收齊）：恢復改依 instance **實際狀態**（`paused_instances_provider`，team.py 綁 daemon）判斷，不只看資料庫旗標；午夜 `_resume_paused`、`POST /api/costs/resume`（回 `resumed:[name]`）、`reevaluate`、TG「恢復暫停」、`send_message` 遇 PAUSED 但未達限（先恢復再投遞，不進 overflow）全走 `CostGuard.clear_and_resume` 同一個函式；health `degraded` 新增 `paused_without_limit:<name>`。真的達限者不受影響。守門 `tests/test_cost_paused_resume.py` 7 項（真實 Daemon／run_team 接線；三項反證皆紅）
+- **任務板讀舊格式 board.json 不再炸**（wukong 問題單 `docs/issues/2026-11-14-task-board-legacy-list-format.md`）：2026-07 時期的 `tasks/board.json` 是純陣列 `[]`，`TaskBoard._load()` 原樣回傳 list → `list_tasks`／`has_pending`／`delegate_task` 全 `AttributeError`。改為舊陣列視為 `tasks`（log warning，下次寫入轉新格式，舊任務保留）；頂層非 dict／list 比照壞檔（唯讀回空＋log error、寫入路徑拋 `BoardCorruptError` 不覆寫）。守門 `tests/test_task_board_legacy_list.py`（5）；反證：退回舊 `_load` → 5 紅
+
+### 已知限制（三井 qa 驗收 P3×3，2.2.4-verify）
+
+- P3：E3 用 asyncio.Queue 私有屬性 _unfinished_tasks，Python 版本變動可能失效；該分支無獨立反證測試鎖定私有屬性存在
+- P3：E1 對真正卡死的 in-flight 輪只標 degraded:inflight_no_output 不回收，需靠 hang 偵測/告警接手，無自動 kill 上限（設計取捨，宜在 CHANGELOG 註明）
+- P3：stale_paused 假設 PAUSED 只由 cost_guard 產生（目前僅 team.py:1416 呼叫 pause_instance，成立）；日後若新增手動暫停會被誤叫醒
+
 ## 2.2.3 (2026-11-15) —— 成本上限執行期調整（免重啟）＋拍板中心 M1＋home 守門
 
 ### 成本上限執行期調整（免重啟）
