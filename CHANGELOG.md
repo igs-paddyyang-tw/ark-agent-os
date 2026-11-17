@@ -1,5 +1,14 @@
 # Changelog — ark-agent-os
 
+## 2.2.6 (2026-11-17) —— Claude 用量上限觸發 failover、failover 裸鍵 on 修正
+
+> GitHub issue ark-agent-os #3（雲端 hoyeah／slotverse 11-17 切 Claude 主、Kiro 備援時回報）第 1、3 點
+
+- **Claude 席位用完會觸發 failover**：Claude Code 用完時回「You've hit your session limit」（也有 weekly／Opus limit），原本 quota 規則只認 `usage limit`／`credit` → 不分類、不切換，只能手動 `backend switch --to fallback`。quota 加上「You've hit/reached your … limit」完整句型（不收裸字 `session limit`，agent 敘述與程式碼區塊不誤判）
+- **`failover` 的裸鍵 `on:` 不再被靜默吃掉**：YAML 1.1 把 `on:` 讀成布林 True → 原本拿到空值、退回預設 `["quota"]`，加的 `rate_limit` 不見。載入時接受 True 鍵並 warning 建議改 `"on":`（`usage_guard.notify` 早已如此處理）；spec 範例改加引號。本機 paddy／ninja／wukong 的 team.yaml 都是裸鍵，值剛好＝預設所以之前沒出事
+- issue #3 第 2 點（Claude manager resume 重啟後接不回）另見 `docs/specs/acp-session-resume-spec.md`，不在本版
+- 守門 `tests/test_claude_limit_failover.py`；反證：拿掉新句型 3 紅、拿掉 True 鍵處理 1 紅
+
 ## 2.2.5 (2026-11-17) —— web 通道不再把對內收尾補成同一題第二則
 
 - **web 通道不再把對內收尾補成同一題第二則**（aibi 11-16 實測，問題單 nana-bot `4b2d78f8b`；P1：前端答案整排錯位）
