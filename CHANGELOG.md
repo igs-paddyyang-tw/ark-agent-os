@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.2.5 (2026-11-17) —— web 通道不再把對內收尾補成同一題第二則
+
+- **web 通道不再把對內收尾補成同一題第二則**（aibi 11-16 實測，問題單 nana-bot `4b2d78f8b`；P1：前端答案整排錯位）
+  - 原因：web 通道在 TTL（預設 30 分）內持續綁定（2.1.5 P2a，讓派工鏈晚到的 `reply()` 回同一個 conv）；回合結束的補送只看「通道還綁著、本回合沒 reply」—— agent 間回報或系統訊息觸發的回合，manager 輸出的「已在後台回覆 paddyyang：…」也被補進網頁佇列
+  - 修法：daemon 送訊息進 agent 時記下這回合的觸發來源；**只有 `web:` 來源觸發的回合才補送**；沒有紀錄（舊呼叫端直接寫 map）照舊視為網頁回合。通道綁定不變，派工鏈的 `reply()` 照樣回同一個 conv
+  - 補送的訊息改標 `kind: "fallback"`（原 `primary`），前端可自行決定是否顯示；內建網站照一般文字顯示
+  - 設計 `web-channel-artifacts-design.md` AC-W5 修訂；守門 `tests/test_web_fallback_turn_source.py`＋改寫 `test_fallback_only_without_reply_and_keeps_binding`；反證：拿掉來源判斷 3 紅、補送改回 primary 1 紅
+
 ## 2.2.4 (2026-11-16) —— cost_guard 恢復（F1～F5）＋idle eviction 在途輪（E1～E3）＋任務板舊格式
 
 - **idle eviction 不再殺掉「有一輪還在跑」的 instance**（問題單 `docs/issues/2026-11-16-idle-eviction-kills-inflight-turn.md`，E1～E3）：回收前先看 `Daemon._busy`（ACP `turn_in_flight`；其他 transport 看在途紀錄）與訊息佇列；有一輪在跑或有訊息在等 → 不回收；超過 idle_timeout 仍零輸出 → `log.warning`＋health `degraded` 加 `inflight_no_output:<name>`（輪結束或 instance 停止後自癒），交給 hang 偵測／告警，不靜默殺。守門 `tests/test_idle_eviction_inflight.py` 6 項（真實 Daemon；拿掉 E1 判斷 3 項紅）
