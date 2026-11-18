@@ -1,5 +1,20 @@
 # Changelog — ark-agent-os
 
+## 2.2.7 (2026-11-18) —— 啟動提示可關（issue #4）、網頁聊天回覆不跑 TG、usage_guard per-instance、停機任務轉等回應（D6）、交接欄位提醒（D7）
+
+> ⚠️ **行為變更**：預設 `startup_prompt: resume_only` —— 當天首次啟動**不再**自動「依優先序發派今日任務」。要舊行為在 `team.yaml` 頂層加 `startup_prompt: kickoff`；每日開工建議改用排程。
+
+- **啟動自動提示可關、預設不派工**（GitHub issue ark-agent-os #4；雲端 11-18 為改環境變數重啟三隊 ≈ 10M token，主要是沒人要求的首日派工）：`team.yaml` 新增 `startup_prompt: off | resume_only | kickoff`
+  - `off`：不送；`resume_only`（預設）：任務板有 in_progress／input_required／blocked 或有待重送訊息時才送「重啟檢查」（source=system、不派工），沒事的啟動零 LLM 回合；`kickoff`：舊行為
+  - 裸字 `off` 被 YAML 讀成 False 也正確當 off；不認得的值退回 resume_only 並 warning
+  - 守門 `tests/test_startup_prompt_mode.py`（18）；反證：決策退回舊邏輯 5 紅、載入不讀設定 2 紅
+- **網頁聊天（`/api/chat/send`）的回覆不再跑去 TG**：原本送出時沒帶 `web:` 來源（預設 user）→ 訊息送進 agent 時被當成非網頁入站而解綁通道，回覆改走 TG；且通道綁定在送出之後，agent 很快 `reply()` 時找不到通道。改為先綁通道、再以 `web:<session>` 送出，送出失敗才解綁。守門 `tests/test_chat_send_web_source.py`；反證：不帶來源 2 紅
+- **`usage_guard` 只設 per-instance 上限時也會啟用**：`enabled` 原本只看全隊上限，只填 `per_instance_limits`（費用或請求數）→ 守門整個沒建、上限形同不存在。守門 `tests/test_usage_guard_per_instance_only.py`；反證 2 紅
+- **instance 停止時手上的任務轉「等回應」**（lobby D6）：崩潰停止自動重啟、手動 `team stop` 時，該 instance 的 `in_progress` 任務轉 `input_required`（note 寫原因與時間），通知派工者（沒有就通知 leader）；不自動改派、不自動轉回。閒置收回／LRU／restart／pause 不觸發（之後會自己接續）。守門 `tests/test_dispatch_d6_suspend.py`；反證 4 紅
+- **完成回報缺交接欄位會提醒**（lobby D7，warn 階段）：任務新增選填 `kind`（code／doc／analysis）；`update_task(completed)` 缺 `metadata.verification`（`kind=code` 另缺 `changed_files`）→ 照收並回提醒，一週後依缺漏率決定是否改拒絕。守門 `tests/test_dispatch_d7_handoff.py`；反證 2 紅
+- **2.x 版本檢查改查 ark-agent-os**（`e6ffeea`）：原本寫死舊 repo（停在 1.13.23），2.x 永遠顯示「已是最新」
+- 預設排程省呼叫、重啟通知改版、memory-distill 預設每週（`3a85550`、`25af7dd`）
+
 ## 2.2.6 (2026-11-17) —— Claude 用量上限觸發 failover、failover 裸鍵 on 修正
 
 > GitHub issue ark-agent-os #3（雲端 hoyeah／slotverse 11-17 切 Claude 主、Kiro 備援時回報）第 1、3 點
