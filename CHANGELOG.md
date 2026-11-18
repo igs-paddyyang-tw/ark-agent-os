@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.2.9 (2026-11-18) —— 網站 port 可設定、同機多站不互踢、遮蔽向量守門、決策筆記回寫、SOUL 範本選法
+
+- **網站 port 可獨立設定**（AIPC 11-10 問題單）：`team.yaml` `web.port: 8377`（或 env `WEBSITE_PORT`），優先序 team.yaml > env > `health_port+5000`；不設＝原行為。綁定、`/api/health.website.port`、`web check`（顯示來源）、`auth` 指令的網址同一個出口；撞港檢查用實際生效的 port 並指出是 `web.port` 撞了；非整數／超範圍在載入時就報錯
+- **同機多站登入不再互踢**：`web.cookie_prefix: slot`（或 env `WEBSITE_COOKIE_PREFIX`）→ cookie 改名 `slot_session_id`／`slot_csrf`／`slot_pending`；不設＝原名稱（零影響）。瀏覽器 cookie 不分 port，兩站共用 `session_id` 會互相覆蓋。讀寫兩端（登入、登出、CSRF、待審、各路由、頁面 JS）全部走同一組名稱。守門 `tests/website/test_website_port_cookie.py`（19；同一 cookie jar 兩站先後登入都維持、登出一站不影響另一站；對照組不設前綴重現互踢）；反證 4／1／1 紅
+- **daily 機密遮蔽有向量守門了**：`secret_scan.redact_text`（daily／活動看板／command 排程落盤前用）原本沒有任何測試吃共用向量檔 —— 舊的 bot↔team parity 因 2.x 只剩一份實作而 35 條全 skip。改驗單一實作：正例機密一定被遮、負例原樣保留（`tests/test_redaction_parity.py` 76 passed／0 skipped）
+- **決策筆記回寫依 working_directory 找 BRAIN**：原本寫死 `agents/<owner>/`，工作目錄在別處的 agent 永遠寫不到（只記 debug）；工作目錄＝專案根的 agent 明確跳過（專案 BRAIN 人寫、agent 唯讀），決策 DR 檔照寫並記 info
+- **SOUL 範本選法與 BRAIN 一致**：`template` 明示 → instance 名 → role（原本 SOUL 是 instance 名優先，同時指定 template 時兩份人格選到不同角色）
+
 ## 2.2.8 (2026-11-18) —— ACP 重啟時以 session/load 接回上一個對話（issue #3 第 2 點）
 
 > 預設 **off**（行為與 2.2.7 相同，不寫任何檔）。開啟：`team.yaml` 頂層 `session_resume: on`（或 instance 層覆寫）。
