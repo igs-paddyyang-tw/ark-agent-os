@@ -1,5 +1,20 @@
 # Changelog — ark-agent-os
 
+## 2.2.8 (2026-11-18) —— ACP 重啟時以 session/load 接回上一個對話（issue #3 第 2 點）
+
+> 預設 **off**（行為與 2.2.7 相同，不寫任何檔）。開啟：`team.yaml` 頂層 `session_resume: on`（或 instance 層覆寫）。
+> 規格 `docs/specs/acp-session-resume-spec.md` 1.1、設計 `docs/designs/acp-session-resume-design.md`。
+
+- **接回**：ACP instance（Claude／Kiro）在 daemon 啟動、延後啟動被叫醒、手動重啟、暫停恢復時，以上一次的 sessionId 送 `session/load`；模型記得之前的對話。崩潰重啟、冷卻、context reset、hang 自動重啟一律開新對話
+- **失敗一律退回新對話並留原因碼**（同一程序，探針驗證兩後端可行）：`no_record`／`cwd_changed`／`backend_changed`／`mcp_changed`／`capability_missing`／`context_high`／`too_old`／`load_error`／`load_timeout`／`options_failed`／`start_reason`；journal WARNING＋event log＋`/api/status` 每 instance 的 `session_resume`（attempts／loaded／fallback／last）
+- **擋重播**：load 回應前後端會重播整段歷史（含文字與工具事件）—— 以旗標擋下，不輸出、不進回合文字、不送活動看板，TG／web 不會收到舊訊息；逾時放棄的舊 session 遲到事件一併丟棄；重播途中的 permission request 照常回應
+- **設定與白名單**：load 後重套 mode／model／effort；Claude 工具白名單 `_meta` 照樣帶入（探針證實 load 後仍生效）
+- **花費**：Claude 的 session 累計花費接上紀錄的基準，不重複計費；沒有基準時第一筆只當基準
+- **輪替**：context 用量 ≥ `usage_soft_pct`（預設 70%）、紀錄超過 24 小時未用、MCP／工具設定變了 → 開新對話；context reset 會清掉紀錄
+- 設定：`session_resume: {mode: off|on, load_timeout_s: 30, max_context_pct: null, max_age_hours: 24}`；YAML 裸字 `on`／`off` 正確解讀；紀錄在 `state/acp_sessions/<instance>.json`（只有 id、路徑、數字，指紋不含 token；刪檔＝下次開新對話）
+- PTY 部署不受影響（`skip_resume` 語意不變；PTY instance 設 on 時 health 標 `n/a (pty)`）
+- 守門 `tests/test_acp_session_load.py`（10，假後端依探針行為）、`tests/test_acp_resume_plan.py`（30）；反證：擋重播旗標失效 3 紅、不接花費基準 1 紅、不看啟動原因 6 紅、指紋含 env 1 紅
+
 ## 2.2.7 (2026-11-18) —— 啟動提示可關（issue #4）、網頁聊天回覆不跑 TG、usage_guard per-instance、停機任務轉等回應（D6）、交接欄位提醒（D7）
 
 > ⚠️ **行為變更**：預設 `startup_prompt: resume_only` —— 當天首次啟動**不再**自動「依優先序發派今日任務」。要舊行為在 `team.yaml` 頂層加 `startup_prompt: kickoff`；每日開工建議改用排程。
