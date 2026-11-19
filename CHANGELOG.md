@@ -1,5 +1,15 @@
 # Changelog — ark-agent-os
 
+## 2.2.10 (2026-11-19) —— 公版網站文字對齊 ark-agent-os、關於頁 MCP 工具清單恢復
+
+- **套件公版網站文字對齊 ark-agent-os**（計畫 `docs/plans/website-copy-ark-agent-os-plan.md`；用公版網站的部署升級後即生效，自建網站如 nana 不受影響）
+  - 關於頁：拿掉寫死的子專案清單與 Phase 進度（部署事實不屬於套件），改為「五層架構」與「核心能力」；快速開始改 `ark-agent-os init／start／web check`；架構圖的 agent 節點依 daemon 實際後端統計（例「Claude × 7」，原本寫死「Kiro CLI × N」）
+  - 登入說明依網站實際模式顯示：帳號模式＝信箱密碼註冊、等 owner 核准、viewer／operator／owner 三級；token 模式＝管理員給的共用 token，並說明怎麼改成帳號模式
+  - 首頁標籤與頁尾改「基於 ark-agent-os vX」（版本取套件，不寫死）
+  - 後台：Sessions 未啟用說明、系統頁旗標位置改為部署根目錄 `.env`；拿掉 1.x 版本門檻；`APP_CONSOLE=nextjs` 未建置頁說明改回內建後台的方法
+  - 守門 `tests/website/test_site_copy.py`（掃 34 個模板：舊套件名、`apps/team-website`、1.x 版本門檻、寫死後端與部署事實；兩種登入模式實際渲染）；反證：頁尾放回舊名 2 紅、放回子專案清單 1 紅、拿掉帳號分支 1 紅
+- **關於頁的 MCP 工具清單恢復**（W-12）：2.1.19 起 `/api/mcp-tools` 回 0 個工具、關於頁 MCP 區塊空白 —— 載入法只 exec 原始碼裡 `_ALL_TOOLS` 那一段，清單引用段外的任務狀態 enum 就 NameError（被吞成 log error）。改為直接 import `team_mcp` 讀清單。守門 `tests/website/test_mcp_tools_loader.py`（反證：退回段落 exec 2 紅）
+
 ## 2.2.9 (2026-11-18) —— 網站 port 可設定、同機多站不互踢、遮蔽向量守門、決策筆記回寫、SOUL 範本選法
 
 - **網站 port 可獨立設定**（AIPC 11-10 問題單）：`team.yaml` `web.port: 8377`（或 env `WEBSITE_PORT`），優先序 team.yaml > env > `health_port+5000`；不設＝原行為。綁定、`/api/health.website.port`、`web check`（顯示來源）、`auth` 指令的網址同一個出口；撞港檢查用實際生效的 port 並指出是 `web.port` 撞了；非整數／超範圍在載入時就報錯
