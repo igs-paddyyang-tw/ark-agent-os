@@ -1,5 +1,16 @@
 # Changelog — ark-agent-os
 
+## 2.2.11 (2026-11-20) —— TG 對話／通報／網站對話獨立開關、409 衝突降級、init 帳號模式範例
+
+- **TG 對話／TG 通報／網站對話拆成獨立開關**（aibi 問題單 11-20；spec `docs/specs/tg-chat-notify-split-spec.md`）—— 同一個 bot token 只能有一個程序收訊；原本關掉對話（`bot_token_env: ""`／`mode: headless`）連告警、重啟通知、成本告警都一起消失
+  - `channel.chat: false`（或 env `ARK_TG_CHAT=0`）＝只通報：不輪詢、不註冊收訊 handler，告警與通知照發；`channel.notify_token_env`／`notify_chat_env` 可讓通報用另一個 token／收件人；`bot_token_env` 空但有 `notify_token_env` 也會只通報
+  - **409 Conflict 自動降級**：另一個程序用同一個 token 收訊時，原本只記 log、無限互搶 → 現在停止收訊、改只通報、`degraded` 加 `tg_conflict:<token env>`、通知 owner（不搶回）
+  - `web.chat.enabled: false`（或 env `ARK_WEB_CHAT=0`）：網站對話頁 404、對話 API 403、導覽列與首頁不顯示對話入口
+  - `/api/health.channel = {tg_chat, tg_notify, conflict}`（實際生效狀態）；只通報或降級時通報不帶按鈕
+  - 未設任何新欄位＝與 2.2.10 相同；`init` 範本只附註解說明
+  - 守門 `tests/test_tg_chat_split.py`（11）；反證 4 組各 1 紅
+- **`init --profile bot|team` 產出的 team.yaml 附網站帳號模式範例**（註解，不直接開）：建議每人一組帳號密碼（信箱註冊 → owner 核准、三級角色）；只給範例是因為 `accounts: true` 卻沒有 owner 時沒人能核准註冊。守門 `tests/ark_agent_os/test_profiles.py`（範例必須是註解、取消註解後是合法設定；反證 2 紅）
+
 ## 2.2.10 (2026-11-19) —— 公版網站文字對齊 ark-agent-os、關於頁 MCP 工具清單恢復
 
 - **套件公版網站文字對齊 ark-agent-os**（計畫 `docs/plans/website-copy-ark-agent-os-plan.md`；用公版網站的部署升級後即生效，自建網站如 nana 不受影響）
