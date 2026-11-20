@@ -1,5 +1,11 @@
 # Changelog — ark-agent-os
 
+## 2.2.12 (2026-11-21) —— ACP 舊錯誤行不再重複計數誤觸 quota、`[NO_REPLY]` 略過補送
+
+- **quota 誤報修正**（11-20 問題單）：ACP 的結構化錯誤紀錄在成功回覆後不清空，health loop 只要輸出變動就重掃最近 30 行 —— 一次真的撞 Claude session limit 後，之後每個正常回合都再命中那一句，累加成「連續 2 次 [quota]」→ failover 通知。改為只掃上次之後**新增**的錯誤行（`error_scan_new`）；真的再撞上限照樣偵測
+- **`[NO_REPLY]` 標記**：agent 判斷「這則不需回覆」時，不呼叫 `reply()` 並在輸出單獨一行寫 `[NO_REPLY]` → web／TG 補送都略過並清掉欠回覆。原本沒有辦法分辨「忘了 reply」與「刻意不回」，內部判斷說明會被補送到群組。TEAM.md「回覆使用者」段加這條規則（部署升級並重啟、TEAM.md 重新產生後生效）
+- 守門 `tests/test_quota_rescan_and_no_reply.py`（9）；反證 3 組紅
+
 ## 2.2.11 (2026-11-20) —— TG 對話／通報／網站對話獨立開關、409 衝突降級、init 帳號模式範例
 
 - **TG 對話／TG 通報／網站對話拆成獨立開關**（aibi 問題單 11-20；spec `docs/specs/tg-chat-notify-split-spec.md`）—— 同一個 bot token 只能有一個程序收訊；原本關掉對話（`bot_token_env: ""`／`mode: headless`）連告警、重啟通知、成本告警都一起消失
