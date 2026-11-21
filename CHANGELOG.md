@@ -1,5 +1,11 @@
 # Changelog — ark-agent-os
 
+## 2.2.13 (2026-11-21) —— hang 閒置從「這輪請求送達」起算、閒置告警精簡
+
+- **hang 誤報修正**（AIPC kiro-bot 11-21）：閒置原本以 `last_output` 起算，agent 閒了 19 小時後一收到訊息，下一輪 health loop 就判 hang，告警寫「閒置超過 19 小時 38 分鐘／上次活動 20:06 現在 20:06」；`auto_restart` 開著時喚醒重試用同一基準，會在收到訊息後直接重啟。新增 `InstanceState.pending_since`（沒有待答請求時收到第一則訊息的時間），hang、升級、喚醒重試三處共用 `max(last_output, pending_since)`
+- **閒置告警精簡**：只放代號（不再塞整段職責描述）、改「N 分鐘未回應（訊息 HH:MM 送達）」
+- 守門 `tests/test_hang_pending_since.py`（7）；反證 2 組紅
+
 ## 2.2.12 (2026-11-21) —— ACP 舊錯誤行不再重複計數誤觸 quota、`[NO_REPLY]` 略過補送
 
 - **quota 誤報修正**（11-20 問題單）：ACP 的結構化錯誤紀錄在成功回覆後不清空，health loop 只要輸出變動就重掃最近 30 行 —— 一次真的撞 Claude session limit 後，之後每個正常回合都再命中那一句，累加成「連續 2 次 [quota]」→ failover 通知。改為只掃上次之後**新增**的錯誤行（`error_scan_new`）；真的再撞上限照樣偵測
