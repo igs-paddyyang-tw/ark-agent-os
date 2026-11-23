@@ -1,5 +1,16 @@
 # Changelog — ark-agent-os
 
+## 2.2.14 (2026-11-23) —— 通用 ACP 後端：Codex、Antigravity 可當 team instance
+
+- **通用 ACP 後端 `type: acp`：Codex、Antigravity 可當 team instance**（spec `docs/specs/acp-generic-backend-spec.md`）—— 原本只認 kiro-cli／claude-code；用 claude-code 型別硬接時，codex 因 `mode=bypassPermissions` 被拒、Gemini 系因沒有 `set_config_option` 失敗，agent 永遠不就緒（11-23 實測）
+  - 內建 profile：`codex`（`codex-acp`、`agent-full-access`）、`antigravity`（`agy acp`、`set_mode`、實驗中）；別名 `codex-acp`→codex，`agy`／`gemini`／`gemini-cli`→antigravity（Antigravity CLI 已取代 Gemini CLI）
+  - profile 欄位：`command`、`vendor`、`mode`、`mode_method`（config_option／set_mode）、`options`、`context_file`、`env`（子程序變數 ← .env 變數名）
+  - 握手支援 `session/set_mode`（對照 `modes.availableModes`，不在清單就失敗並列出可選值）
+  - 模型別名加 codex 欄（fast＝gpt-6-luna、deep＝gpt-6.2-sol、standard＝不指定）
+  - 錯誤分類認 OpenAI `insufficient_quota`／`rate_limit_exceeded`、Google `RESOURCE_EXHAUSTED`／`Quota exceeded for quota metric`（failover 可觸發）
+  - health：`cost_untracked`（跑過一輪仍沒回報花費的 acp instance；codex 只回 token）、`permission_unscoped` 涵蓋 acp；網站與 `backend status` 顯示 Codex／Antigravity
+  - 守門 `tests/test_acp_generic_backend.py`（19；反證 4 組皆紅）；實測：套件 AcpBackend 接 codex-acp 就緒並回答
+
 ## 2.2.13 (2026-11-21) —— hang 閒置從「這輪請求送達」起算、閒置告警精簡
 
 - **hang 誤報修正**（AIPC kiro-bot 11-21）：閒置原本以 `last_output` 起算，agent 閒了 19 小時後一收到訊息，下一輪 health loop 就判 hang，告警寫「閒置超過 19 小時 38 分鐘／上次活動 20:06 現在 20:06」；`auto_restart` 開著時喚醒重試用同一基準，會在收到訊息後直接重啟。新增 `InstanceState.pending_since`（沒有待答請求時收到第一則訊息的時間），hang、升級、喚醒重試三處共用 `max(last_output, pending_since)`
