@@ -1,5 +1,11 @@
 # Changelog — ark-agent-os
 
+## 2.2.15 (2026-11-23) —— Antigravity（agy）實機通過
+
+- **team MCP 不回應 JSON-RPC 通知**：收到無 `id` 的訊息（如 `notifications/roots/list_changed`）時回了一則 `id: null` 的錯誤，違反 JSON-RPC（通知不得回應）；Antigravity 判 `invalid request` 直接關掉 team MCP 連線，agent 的 team 工具全部失敗、改用 shell 硬做（T7 實機轉錄抓到）→ 無 `id` 一律靜默；順手補 MCP `ping`（回空結果）。守門 `tests/test_mcp_notifications_silent.py`（反證 1 紅）
+- **team MCP 工具清單能被 Gemini／Antigravity 接受**：`reply.template` 的 enum 第一個值是空字串，Google API 回 `INVALID_ARGUMENT: enum[0] cannot be empty` 拒收整份工具清單，agent 一輪都跑不了（Claude／Codex 不檢查，換後端才出現）→ 拿掉空值（不給參數＝現行格式）；守門 `tests/test_mcp_schema_portable.py`：所有工具的 enum 不得有空值（反證 1 紅）
+- **Antigravity 內建 profile 依實測修正**（agy 1.5.14，T7）：2.2.14 照 Gemini CLI 推測的 `mode: yolo`＋`set_mode` 在 agy 上不存在（agy 的 mode 走 `set_config_option`：default／accept-edits／auto／plan）→ 改為 `mode: auto`、`config_option`，啟動帶 `--dangerously-skip-permissions`（daemon 無人可核准，等同 claude 的 bypassPermissions）；推理強度送 `thought_level`（low／medium／high）；模型別名加 antigravity 欄（fast＝gemini-3.8-flash）；拿掉 experimental 標記。實測：接回對話 1.8s 答對、套件 AcpBackend 就緒並回答
+
 ## 2.2.14 (2026-11-23) —— 通用 ACP 後端：Codex、Antigravity 可當 team instance
 
 - **通用 ACP 後端 `type: acp`：Codex、Antigravity 可當 team instance**（spec `docs/specs/acp-generic-backend-spec.md`）—— 原本只認 kiro-cli／claude-code；用 claude-code 型別硬接時，codex 因 `mode=bypassPermissions` 被拒、Gemini 系因沒有 `set_config_option` 失敗，agent 永遠不就緒（11-23 實測）
