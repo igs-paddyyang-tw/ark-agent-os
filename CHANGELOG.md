@@ -1,5 +1,14 @@
 # Changelog — ark-agent-os
 
+## 2.2.16 (2026-11-24) —— wheel 部署不再被誤判成開發源
+
+- **updater 把 2.x wheel 部署誤判成 editable**（aibi／aidev 議題 `2026-11-24-to-ark-agent-os-updater-misreports-editable`）：判準①查 dist metadata 時仍用 2.0 前的舊名 `ark-team-agent`，2.x wheel 的 metadata 是 `ark-agent-os` → 永遠查不到、落入「保守回 True」→ 所有 wheel 部署的更新通知都寫「本機是 editable 安裝（開發源）」、TG 一鍵更新被擋（本機 nana／ninja 實測同樣中）
+  - dist 依序查 `ark-agent-os`、`ark-team-agent`；載入位置查 `ark_agent_os`（不再靠相容 shim）
+  - 判準②已確認載入位置在 site-packages、只是查不到 metadata → **視為 wheel**（記 warning）；保守拒絕只留給載入位置無法判斷的情況
+  - 新增 `updater.editable_reason()`：更新通知與拒絕訊息附「判斷依據」，使用者可核對
+  - `deploy upgrade` 的 venv 判斷片段改 `import ark_agent_os`（它只看載入位置，本來就沒誤判）
+  - 守門 `tests/test_updater_editable_wheel.py` 8 項：無 metadata 的 wheel、ark-agent-os metadata 的 wheel 判 False；`pip install -e`、舊名 metadata、`.pth` 開發源、載入位置不明判 True；文字帶依據且 HTML 跳脫（舊碼反證 6 紅）
+
 ## 2.2.15 (2026-11-23) —— Antigravity（agy）實機通過
 
 - **team MCP 不回應 JSON-RPC 通知**：收到無 `id` 的訊息（如 `notifications/roots/list_changed`）時回了一則 `id: null` 的錯誤，違反 JSON-RPC（通知不得回應）；Antigravity 判 `invalid request` 直接關掉 team MCP 連線，agent 的 team 工具全部失敗、改用 shell 硬做（T7 實機轉錄抓到）→ 無 `id` 一律靜默；順手補 MCP `ping`（回空結果）。守門 `tests/test_mcp_notifications_silent.py`（反證 1 紅）
