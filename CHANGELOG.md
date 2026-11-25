@@ -1,5 +1,16 @@
 # Changelog — ark-agent-os
 
+## 2.2.17 (2026-11-25) —— 網站帳號忘記密碼與改密碼
+
+- **網站帳號：忘記密碼與改密碼**（spec `docs/specs/web-password-reset-spec.md`）—— 帳號模式原本只有密碼／Google／break-glass，忘記密碼只能上主機（11-25 nana owner 實例）
+  - 改密碼：頁首「改密碼」→ `/auth/password`（舊密碼＋新密碼 ≥ 10；只用 Google 的帳號可直接設定）；舊密碼錯計入 5 次鎖 15 分鐘；成功後其他裝置登出
+  - 忘記密碼：登入頁「忘記密碼」→ 回應一律相同（不洩漏帳號是否存在）、背景處理；同信箱 10 分鐘一次、全站每小時 20 次
+  - owner 忘記密碼：一次性重設連結**只私訊** TG（`notify_chat_ids` 的群組 id 一律濾掉）；其他帳號：通知 owner（不含連結），owner 在「存取管理」按「重設連結」複製轉交
+  - 重設連結 30 分鐘、單次、只存雜湊，新連結作廢舊連結；重設後清除鎖定、登出該帳號所有 session、通知 owner；重設頁回 `Referrer-Policy: no-referrer`
+  - CLI 最後手段：`ark-agent-os auth reset-link <email>`
+  - break-glass 登入後先導到改密碼頁（顯示提示，可略過到存取管理）—— nana 交接 R-3
+  - 守門 `tests/website/test_web_password_reset.py` 18 項（反證 4 紅：舊密碼猜測不計次、連結可重用、owner 連結送進群組、改密碼不驗 CSRF）
+
 ## 2.2.16 (2026-11-24) —— wheel 部署不再被誤判成開發源
 
 - **updater 把 2.x wheel 部署誤判成 editable**（aibi／aidev 議題 `2026-11-24-to-ark-agent-os-updater-misreports-editable`）：判準①查 dist metadata 時仍用 2.0 前的舊名 `ark-team-agent`，2.x wheel 的 metadata 是 `ark-agent-os` → 永遠查不到、落入「保守回 True」→ 所有 wheel 部署的更新通知都寫「本機是 editable 安裝（開發源）」、TG 一鍵更新被擋（本機 nana／ninja 實測同樣中）
