@@ -1,5 +1,17 @@
 # Changelog — ark-agent-os
 
+## 2.2.18 (2026-11-26) —— Agent Gateway：自建網頁與 Chrome 外掛呼叫 agent
+
+- **Agent Gateway**（spec `docs/specs/agent-gateway-api-spec.md`）—— 外部 web 工具、Chrome 外掛呼叫 agent 對話與提議操作；**預設關**（team.yaml `gateway.enabled: true` 才開）
+  - **獨立唯讀對話**：外部對話在 instance 的同一個 ACP 程序開 side session，與 TG 主對話互不可見；mode `default`、內建工具只開 Read／Glob、封鎖 `.env`／secrets／state／Bash／寫檔；只放行 team 回覆與查詢類工具。Phase 1 只支援 claude-code（claude-agent-acp）後端
+  - **回覆路由**：team MCP 帶 `--conv`，`reply`／`reply_file` 回到該外部對話；對不上的一律丟棄、**不會退回 TG**
+  - **client key**：`ark-agent-os gateway key create|list|revoke`；secret 只存 sha256；限定 instance（admin 不開放）與 origins（`https://…`、`chrome-extension://<ID>`）；每分鐘／每日上限
+  - **網站 `/gw/v1`**：Bearer 驗證、CORS 逐一比對（不回 `*`）、對話只對建立它的 key 可見、SSE 串流、`/gw/v1/chat` 一次問完
+  - **操作提議**：外部對話多一個 `propose_actions`（填欄位／點擊／下拉／換頁／複製），格式不對整批拒；執行一律在使用者端勾選確認（`ArkAgent.runActions`），結果回報 agent
+  - **前端**：`/gw/sdk.js`（頁面內容附「可操作元素」清單，agent 才不會猜錯 selector）、`/gw/widget.js` 一行嵌入對話框、`gateway extension init` 產生 Chrome 側邊欄外掛（MV3）
+  - 上限滿時釋放閒置最久的外部對話；後端額度上限的固定句改成 `error` 事件，不當答案送出
+  - 實機（kiro-bot，dev 版）：伺服器端 10/10、瀏覽器嵌入 9/9（跨網域→提議→確認→實際填表）、外掛載入與 `chrome-extension` 來源打通；守門 71 項、反證 18 項全紅
+
 ## 2.2.17 (2026-11-25) —— 網站帳號忘記密碼與改密碼
 
 - **網站帳號：忘記密碼與改密碼**（spec `docs/specs/web-password-reset-spec.md`）—— 帳號模式原本只有密碼／Google／break-glass，忘記密碼只能上主機（11-25 nana owner 實例）
