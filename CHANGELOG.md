@@ -1,5 +1,10 @@
 # Changelog — ark-agent-os
 
+## 2.2.19 (2026-11-27) —— port 規則與 auth doctor
+
+- **auth doctor 指出帳號模式設定放錯位置**（nana 交接 11-25 順帶回報）：帳號庫已有帳號、但 CLI 從 `<home>/.env`／team.yaml 判帳號模式關閉時，doctor 報 P1「帳號模式設定位置」，列出 `apps/*/.env`、`web/.env` 裡開了 `AUTH_ACCOUNTS` 的檔並說明補到哪裡；`auth break-glass`／`auth reset-link` 被拒時附同一句提示。帳號模式關閉時 doctor 不再順手建空的 `state/web-auth.db`。守門 5 項（反證 2 紅）；nana／paddy／ninja 實跑無誤報
+- **port 規則改寫：網站與 agent／API 各自設定**（Paddy 11-27）—— 文件與範本原本寫「網站＝health_port＋5000」像是固定規定；實際上 2.2.9 起就能用 `web.port`（或 env `WEBSITE_PORT`）獨立設定。改為：`health_port`（或 `TEAM_AGENT_PORT`）管 agent／API，`web.port` 管網站，**`web.port` 不寫才用 health_port＋5000**；兩者相同仍在啟動時報錯。範本 `team.yaml` 註明兩者、`init` 產生的網站範例寫出 `web.port`、README／migrate 說明同步。行為不變，現有部署零影響。守門：`test_profile_has_web_accounts_example` 要求範例含 `web.port`（反證紅）
+
 ## 2.2.18 (2026-11-26) —— Agent Gateway：自建網頁與 Chrome 外掛呼叫 agent
 
 - **Agent Gateway**（spec `docs/specs/agent-gateway-api-spec.md`）—— 外部 web 工具、Chrome 外掛呼叫 agent 對話與提議操作；**預設關**（team.yaml `gateway.enabled: true` 才開）
