@@ -1,5 +1,13 @@
 # Changelog — ark-agent-os
 
+## 2.2.20 (2026-11-28) —— preflight 誤報與報告送不出（slotverse 問題單）
+
+- **preflight P0 報告終於送得出去**：`run_preflight` 經 `asyncio.to_thread` 在背景執行緒跑，原本在那裡直接建 async task → `no running event loop`、coroutine 從沒被 await，**所有 P0 報告都沒送到 owner**。改由 `_submit_to_loop` 用 `run_coroutine_threadsafe` 送回 daemon 事件迴圈；找不到 loop 時降級進 log、不留 never-awaited 警告
+- **`log_to_leader` 失敗不再判 P0**：它是內部回報、使用者看不到，原本一次 ✗ 就蓋掉前一秒 `send_to_instance` 的 ✓、整隊 degraded 24 小時。拆成 P2 探針 `internal_log_liveness`（只提示、不進 degraded）；reply／send 等出口的失敗照樣 P0
+- **admin／manager 的 `log_to_leader` 改送 owner 私訊**：編制最上層沒有 leader，原本退到 general_topic 持有者（manager）。owner 私訊失敗或取不到時退回原路由
+- **`/api/log` 拒絕要留 log**：404（找不到收件 leader）、503（TG 未就緒）、以及所有 API 的 422 參數驗證失敗都寫 warning（原本 daemon 端完全沒紀錄，只能從 tool_calls.log 看到 ✗）
+- 守門 13 項（反證 4 紅）
+
 ## 2.2.19 (2026-11-27) —— port 規則與 auth doctor
 
 - **auth doctor 指出帳號模式設定放錯位置**（nana 交接 11-25 順帶回報）：帳號庫已有帳號、但 CLI 從 `<home>/.env`／team.yaml 判帳號模式關閉時，doctor 報 P1「帳號模式設定位置」，列出 `apps/*/.env`、`web/.env` 裡開了 `AUTH_ACCOUNTS` 的檔並說明補到哪裡；`auth break-glass`／`auth reset-link` 被拒時附同一句提示。帳號模式關閉時 doctor 不再順手建空的 `state/web-auth.db`。守門 5 項（反證 2 紅）；nana／paddy／ninja 實跑無誤報
